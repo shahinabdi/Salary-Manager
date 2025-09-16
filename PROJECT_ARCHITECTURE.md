@@ -3,128 +3,121 @@
 ## System Overview Diagram
 
 ```mermaid
-graph TB
-    %% Application Entry Point
-    subgraph "🚀 Application Entry"
-        HTML[index.html]
-        MAIN[main.tsx]
-        VITE[Vite Config]
-    end
-
-    %% Core Application Layer
-    subgraph "🎯 Core Application"
-        APP[App.tsx<br/>Main Application Component]
-        EB[ErrorBoundary.tsx<br/>Error Handling]
-    end
-
-    %% Data Management Layer
-    subgraph "📊 Data Management Layer"
-        HOOK[useDataManagement.ts<br/>Central Data Hook]
-        LOCAL[useLocalStorage.ts<br/>Persistence Hook]
-        TYPES[types/index.ts<br/>TypeScript Types]
-        HELPERS[utils/helpers.ts<br/>Utility Functions]
-    end
-
-    %% Component Architecture
-    subgraph "🏗️ UI Components"
-        %% Form Components
-        subgraph "📝 Forms & Input"
-            FORM[DataForm.tsx<br/>Entry Creation/Edit]
-            FILTERS[Filters.tsx<br/>Data Filtering]
-            TRANSPORT[TransportDefaultSetting.tsx<br/>Default Settings]
-        end
-        
-        %% Display Components
-        subgraph "📋 Data Display"
-            TABLE[DataTable.tsx<br/>Tabular Data View]
-            STATS[Statistics.tsx<br/>Analytics Dashboard]
-            MONTH[MonthStatus.tsx<br/>Month Overview Cards]
-        end
-        
-        %% Utility Components
-        subgraph "🔧 Utilities"
-            IMPORT[ImportExport.tsx<br/>Data I/O Operations]
-            CONFIRM[ConfirmDialog.tsx<br/>Action Confirmations]
-            SPINNER[LoadingSpinner.tsx<br/>Loading States]
-        end
-    end
-
-    %% Data Storage & Types
-    subgraph "🗄️ Data Architecture"
-        subgraph "📋 Type System"
-            BASE[BaseEntry<br/>Common Properties]
-            SALARY[SalaryEntry<br/>Salary-specific Data]
-            OTHER[OtherEntry<br/>Bonus/Overtime/Benefits]
-            UNION[YearlyData Union<br/>SalaryEntry | OtherEntry]
-        end
-        
-        subgraph "💾 Storage"
-            BROWSER[localStorage<br/>Browser Storage]
-            JSON[JSON Export<br/>Data Backup]
-        end
-    end
-
-    %% Data Flow Connections
+---
+config:
+  layout: elk
+  look: handDrawn
+  theme: mc
+---
+flowchart TB
+ subgraph subGraph0["🚀 Application Entry"]
+        HTML["index.html"]
+        MAIN["main.tsx"]
+        VITE["Vite Config"]
+  end
+ subgraph subGraph1["🎯 Core Application"]
+        APP["App.tsx<br>Main Application Component"]
+        EB["ErrorBoundary.tsx<br>Error Handling"]
+  end
+ subgraph subGraph2["📊 Data Management Layer"]
+        HOOK["useDataManagement.ts<br>Central Data Hook"]
+        LOCAL["useLocalStorage.ts<br>Persistence Hook"]
+        TYPES["types/index.ts<br>TypeScript Types"]
+        HELPERS["utils/helpers.ts<br>Utility Functions"]
+  end
+ subgraph subGraph3["📝 Forms & Input"]
+        FORM["DataForm.tsx<br>Entry Creation/Edit"]
+        FILTERS["Filters.tsx<br>Data Filtering"]
+        TRANSPORT["TransportDefaultSetting.tsx<br>Default Settings"]
+  end
+ subgraph subGraph4["📋 Data Display"]
+        TABLE["DataTable.tsx<br>Tabular Data View"]
+        STATS["Statistics.tsx<br>Analytics Dashboard"]
+        MONTH["MonthStatus.tsx<br>Month Overview Cards"]
+  end
+ subgraph subGraph5["🔧 Utilities"]
+        IMPORT["ImportExport.tsx<br>Data I/O Operations"]
+        CONFIRM["ConfirmDialog.tsx<br>Action Confirmations"]
+        SPINNER["LoadingSpinner.tsx<br>Loading States"]
+  end
+ subgraph subGraph6["🏗️ UI Components"]
+        subGraph3
+        subGraph4
+        subGraph5
+  end
+ subgraph subGraph7["📋 Type System"]
+        BASE["BaseEntry<br>Common Properties"]
+        SALARY["SalaryEntry<br>Salary-specific Data"]
+        OTHER["OtherEntry<br>Bonus/Overtime/Benefits"]
+        UNION["YearlyData Union<br>SalaryEntry and OtherEntry"]
+  end
+ subgraph subGraph8["💾 Storage"]
+        BROWSER["localStorage<br>Browser Storage"]
+        JSON["JSON Export<br>Data Backup"]
+  end
+ subgraph subGraph9["🗄️ Data Architecture"]
+        subGraph7
+        subGraph8
+  end
     HTML --> MAIN
     MAIN --> APP
-    APP --> EB
-    EB --> FORM
-    EB --> TABLE
-    EB --> STATS
-    EB --> MONTH
-    EB --> FILTERS
-    EB --> TRANSPORT
-    EB --> IMPORT
-    EB --> CONFIRM
-    EB --> SPINNER
-    
-    %% Data Management Connections
-    APP --> HOOK
-    HOOK --> LOCAL
-    HOOK --> HELPERS
+    APP --> EB & HOOK
+    EB --> FORM & TABLE & STATS & MONTH & FILTERS & TRANSPORT & IMPORT & CONFIRM & SPINNER
+    HOOK --> LOCAL & HELPERS
     LOCAL --> BROWSER
     IMPORT --> JSON
-    
-    %% Type System Connections
-    BASE --> SALARY
-    BASE --> OTHER
+    BASE --> SALARY & OTHER
     SALARY --> UNION
     OTHER --> UNION
     UNION --> TYPES
-    
-    %% Component to Data Connections
     FORM --> UNION
     TABLE --> UNION
     STATS --> SALARY
     MONTH --> UNION
     FILTERS --> UNION
-    
-    %% Styling & Build
-    CSS[Tailwind CSS<br/>Styling Framework]
-    BUILD[Vite Build<br/>Development Server]
-    
-    VITE --> BUILD
-    CSS --> APP
-    
-    %% Color coding
+    VITE --> BUILD["Vite Build<br>Development Server"]
+    CSS["Tailwind CSS<br>Styling Framework"] --> APP
+     HTML:::entryPoint
+     MAIN:::entryPoint
+     VITE:::entryPoint
+     APP:::core
+     EB:::core
+     HOOK:::dataLayer
+     LOCAL:::dataLayer
+     TYPES:::types
+     HELPERS:::dataLayer
+     FORM:::components
+     FILTERS:::components
+     TRANSPORT:::components
+     TABLE:::components
+     STATS:::components
+     MONTH:::components
+     IMPORT:::components
+     CONFIRM:::components
+     SPINNER:::components
+     BASE:::types
+     SALARY:::types
+     OTHER:::types
+     UNION:::types
+     BROWSER:::storage
+     JSON:::storage
     classDef entryPoint fill:#e1f5fe
     classDef core fill:#f3e5f5
     classDef dataLayer fill:#e8f5e8
     classDef components fill:#fff3e0
     classDef storage fill:#fce4ec
     classDef types fill:#f1f8e9
-    
-    class HTML,MAIN,VITE entryPoint
-    class APP,EB core
-    class HOOK,LOCAL,HELPERS dataLayer
-    class FORM,TABLE,STATS,MONTH,FILTERS,TRANSPORT,IMPORT,CONFIRM,SPINNER components
-    class BROWSER,JSON storage
-    class BASE,SALARY,OTHER,UNION,TYPES types
 ```
 
 ## Data Flow Architecture
 
 ```mermaid
+---
+config:
+  layout: elk
+  look: handDrawn
+  theme: mc
+---
 sequenceDiagram
     participant U as 👤 User
     participant A as App.tsx
@@ -176,6 +169,12 @@ sequenceDiagram
 ## Component Interaction Flow
 
 ```mermaid
+---
+config:
+  layout: elk
+  look: handDrawn
+  theme: mc
+---
 flowchart TD
     %% User Actions
     START([User Opens App]) --> LOAD[Load Data from localStorage]
@@ -245,6 +244,12 @@ flowchart TD
 ## Type System Architecture
 
 ```mermaid
+---
+config:
+  layout: elk
+  look: handDrawn
+  theme: mc
+---
 erDiagram
     BaseEntry {
         string id PK
@@ -317,6 +322,12 @@ erDiagram
 ## Business Logic Flow
 
 ```mermaid
+---
+config:
+  layout: elk
+  look: handDrawn
+  theme: mc
+---
 stateDiagram-v2
     [*] --> AppStartup: Application Load
     
@@ -389,78 +400,15 @@ stateDiagram-v2
     UpdateDefault --> ApplyToYear: Update All Year Entries
     ApplyToYear --> UpdateStatistics: Recalculate
 ```
-
-## Feature Complexity Analysis
-
-```mermaid
-mindmap
-  root((Salary Management System))
-    Data Architecture
-      Type System
-        BaseEntry interface
-        SalaryEntry extends BaseEntry
-        OtherEntry extends BaseEntry
-        Union Type YearlyData
-      Storage Layer
-        localStorage persistence
-        JSON export/import
-        Data validation
-        Migration support
-    
-    UI Components
-      Core Forms
-        DataForm with category switching
-        Conditional field rendering
-        Validation with error display
-        Transport default integration
-      Data Display
-        DataTable with responsive design
-        Statistics dashboard
-        Month status cards with modals
-        Filter system with search
-      Utility Components
-        Loading states
-        Error boundaries
-        Confirmation dialogs
-        Import/Export interfaces
-    
-    Business Logic
-      CRUD Operations
-        Create with validation
-        Read with filtering/sorting
-        Update with type preservation
-        Delete with confirmation
-      Calculations
-        Statistics for worked months only
-        Average salary excluding transport
-        Transport payment tracking
-        Month completion status
-      Validation Rules
-        Category-specific validation
-        Prerequisite checking for other entries
-        Date range validation
-        Amount validation
-    
-    Advanced Features
-      Multi-Category System
-        Primary salary entries
-        Secondary bonus/overtime/benefits
-        Dependency validation
-        Conditional UI rendering
-      Smart Defaults
-        Transport amount defaults per year
-        Automatic form pre-filling
-        Context-aware suggestions
-      Data Integrity
-        Type-safe operations
-        Validation at multiple levels
-        Error handling and recovery
-        Backup and restore
-```
-
 ## Performance & Optimization
 
 ```mermaid
+---
+config:
+  layout: elk
+  look: handDrawn
+  theme: mc
+---
 graph LR
     subgraph "🚀 Performance Optimizations"
         MEMO[React.memo<br/>Component Memoization]
@@ -497,6 +445,12 @@ graph LR
 ## Technology Stack
 
 ```mermaid
+---
+config:
+  layout: elk
+  look: handDrawn
+  theme: mc
+---v
 graph TB
     subgraph "🏗️ Development Stack"
         subgraph "Frontend"
