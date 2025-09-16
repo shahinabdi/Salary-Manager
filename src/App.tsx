@@ -8,10 +8,10 @@ import { DataTable } from './components/DataTable';
 import { Filters } from './components/Filters';
 import { Statistics } from './components/Statistics';
 import { MonthStatus } from './components/MonthStatus';
-import { TransportDefaultSetting } from './components/TransportDefaultSetting';
 import { ImportExport } from './components/ImportExport';
 import { ConfirmDialog } from './components/ConfirmDialog';
-import { Plus, Calendar, Database, AlertCircle } from 'lucide-react';
+import { PrintModal } from './components/PrintModal';
+import { Plus, Calendar, Database, AlertCircle, Printer } from 'lucide-react';
 
 function App() {
   const {
@@ -27,14 +27,13 @@ function App() {
     createItem,
     updateItem,
     deleteItem,
-    getTransportDefault,
-    setTransportDefault,
     filters,
     searchTerm
   } = useDataManagement();
 
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<YearlyData | null>(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     itemId: string | null;
@@ -151,6 +150,15 @@ function App() {
                   <Plus className="w-4 h-4" />
                   <span>Add Entry</span>
                 </button>
+
+                {/* Print Button */}
+                <button
+                  onClick={() => setShowPrintModal(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors duration-200"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print Report</span>
+                </button>
               </div>
             </div>
           </div>
@@ -177,15 +185,6 @@ function App() {
             <>
               {/* Statistics */}
               <Statistics statistics={statistics} />
-
-              {/* Transport Default Setting */}
-              <div className="mb-6">
-                <TransportDefaultSetting
-                  selectedYear={selectedYear}
-                  getTransportDefault={getTransportDefault}
-                  setTransportDefault={setTransportDefault}
-                />
-              </div>
 
               {/* Month Completion Status */}
               <MonthStatus data={allData} selectedYear={selectedYear} />
@@ -225,7 +224,6 @@ function App() {
           onSubmit={handleSubmit}
           initialData={editingItem}
           selectedYear={selectedYear}
-          getTransportDefault={getTransportDefault}
           allData={data}
         />
 
@@ -238,6 +236,14 @@ function App() {
           onConfirm={handleDeleteConfirm}
           onCancel={() => setDeleteConfirm({ isOpen: false, itemId: null })}
           type="danger"
+        />
+
+        <PrintModal
+          isOpen={showPrintModal}
+          onClose={() => setShowPrintModal(false)}
+          data={data}
+          selectedYear={selectedYear}
+          statistics={statistics}
         />
       </div>
     </ErrorBoundary>

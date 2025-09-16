@@ -13,10 +13,8 @@ export interface SalaryEntry extends BaseEntry {
   category: 'salary';
   salaryNet: number; // Same as amount for salary entries
   swilePayment: number; // Payment for previous month's swile
-  transportPayment: number; // Payment for previous month's transport
-  transportPaid: boolean;
+  transportPaid: boolean; // Whether transport was provided/paid (checkbox only)
   worked: boolean; // Whether the person worked this month
-  transportDefault?: number; // Default transport amount for this year
 }
 
 export interface OtherEntry extends BaseEntry {

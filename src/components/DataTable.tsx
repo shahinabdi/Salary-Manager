@@ -103,7 +103,7 @@ export const DataTable: React.FC<DataTableProps> = ({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Salary (Net)</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Swile Payment</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Transport Payment</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">                  Transport</th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Transport Paid</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
@@ -132,7 +132,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   {item.category === 'salary' ? formatCurrency((item as SalaryEntry).swilePayment) : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                  {item.category === 'salary' ? formatCurrency((item as SalaryEntry).transportPayment) : '-'}
+                  {item.category === 'salary' ? (item as SalaryEntry).transportPaid ? '✅ Yes' : '❌ No' : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
                   {item.category === 'salary' ? (
@@ -211,7 +211,7 @@ export const DataTable: React.FC<DataTableProps> = ({
                   </div>
                   <div>
                     <span className="text-gray-500">Transport:</span>
-                    <span className="ml-1">{formatCurrency((item as SalaryEntry).transportPayment)}</span>
+                    <span className="ml-1">{(item as SalaryEntry).transportPaid ? 'Provided' : 'Not Provided'}</span>
                   </div>
                   <div className="flex items-center">
                     <span className="text-gray-500">Paid:</span>

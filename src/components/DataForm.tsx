@@ -8,7 +8,6 @@ interface DataFormProps {
   onSubmit: (data: Omit<YearlyData, 'id' | 'createdAt' | 'updatedAt'>) => void;
   initialData?: YearlyData | null;
   selectedYear: number;
-  getTransportDefault: (year: number) => number;
   allData: YearlyData[]; // All data to check if salary entry exists for validation
 }
 
@@ -18,7 +17,6 @@ export const DataForm: React.FC<DataFormProps> = ({
   onSubmit,
   initialData,
   selectedYear,
-  getTransportDefault,
   allData
 }) => {
   const [formData, setFormData] = useState({
@@ -30,7 +28,6 @@ export const DataForm: React.FC<DataFormProps> = ({
     // Salary-specific fields
     salaryNet: 0,
     swilePayment: 0,
-    transportPayment: 0,
     transportPaid: false,
     worked: true,
     
@@ -47,7 +44,6 @@ export const DataForm: React.FC<DataFormProps> = ({
           month: initialData.month,
           salaryNet: initialData.salaryNet,
           swilePayment: initialData.swilePayment,
-          transportPayment: initialData.transportPayment,
           transportPaid: initialData.transportPaid,
           worked: initialData.worked,
           category: initialData.category,
@@ -60,7 +56,6 @@ export const DataForm: React.FC<DataFormProps> = ({
           month: initialData.month,
           salaryNet: 0,
           swilePayment: 0,
-          transportPayment: 0,
           transportPaid: false,
           worked: false,
           category: initialData.category,
@@ -69,13 +64,11 @@ export const DataForm: React.FC<DataFormProps> = ({
         });
       }
     } else {
-      const defaultTransport = getTransportDefault(selectedYear);
       setFormData({
         year: selectedYear,
         month: new Date().getMonth() + 1, // Current month (1-12)
         salaryNet: 0,
         swilePayment: 0,
-        transportPayment: defaultTransport, // Use default transport value
         transportPaid: false,
         worked: true, // Default to worked
         category: 'salary',
@@ -84,7 +77,7 @@ export const DataForm: React.FC<DataFormProps> = ({
       });
     }
     setErrors({});
-  }, [initialData, selectedYear, isOpen, getTransportDefault]);
+  }, [initialData, selectedYear, isOpen]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -100,10 +93,6 @@ export const DataForm: React.FC<DataFormProps> = ({
 
       if (formData.swilePayment < 0) {
         newErrors.swilePayment = 'Swile payment cannot be negative';
-      }
-
-      if (formData.transportPayment < 0) {
-        newErrors.transportPayment = 'Transport payment cannot be negative';
       }
     } else {
       if (!formData.amount || formData.amount <= 0) {
@@ -140,7 +129,6 @@ export const DataForm: React.FC<DataFormProps> = ({
           amount: formData.salaryNet, // Amount is same as salaryNet for salary entries
           salaryNet: formData.salaryNet,
           swilePayment: formData.swilePayment,
-          transportPayment: formData.transportPayment,
           transportPaid: formData.transportPaid,
           worked: formData.worked,
           notes: formData.notes
@@ -291,24 +279,6 @@ export const DataForm: React.FC<DataFormProps> = ({
                       }`}
                     />
                     {errors.swilePayment && <p className="mt-1 text-sm text-red-600">{errors.swilePayment}</p>}
-                  </div>
-
-                  <div>
-                    <label htmlFor="transportPayment" className={`block text-sm font-medium text-gray-700 mb-1 ${!formData.worked ? 'opacity-50' : ''}`}>
-                      Transport Payment €
-                    </label>
-                    <input
-                      type="number"
-                      id="transportPayment"
-                      step="0.01"
-                      value={formData.transportPayment}
-                      onChange={(e) => handleInputChange('transportPayment', parseFloat(e.target.value) || 0)}
-                      disabled={!formData.worked}
-                      className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:bg-gray-100 ${
-                        errors.transportPayment ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                    />
-                    {errors.transportPayment && <p className="mt-1 text-sm text-red-600">{errors.transportPayment}</p>}
                   </div>
                 </>
               ) : (

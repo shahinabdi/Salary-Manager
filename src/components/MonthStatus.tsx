@@ -236,7 +236,7 @@ export const MonthStatus: React.FC<MonthStatusProps> = ({ data, selectedYear }) 
                     </div>
                     <div className="text-right">
                       <div className="font-semibold text-gray-900">
-                        €{selectedMonthData.salaryEntry.transportPayment.toFixed(2)}
+                        €{selectedMonthData.salaryEntry.swilePayment.toFixed(2)}
                       </div>
                       <div className={`text-xs font-medium ${
                         selectedMonthData.salaryEntry.transportPaid ? 'text-green-600' : 'text-red-600'

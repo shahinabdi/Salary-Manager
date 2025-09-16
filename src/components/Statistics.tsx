@@ -1,6 +1,6 @@
 import React from 'react';
 import { formatCurrency } from '../utils/helpers';
-import { TrendingUp, DollarSign, CreditCard, Truck, UserCheck, UserX, Info } from 'lucide-react';
+import { TrendingUp, DollarSign, CreditCard, UserCheck, UserX, Info } from 'lucide-react';
 
 interface StatisticsProps {
   statistics: {
@@ -9,7 +9,6 @@ interface StatisticsProps {
     notWorkedMonths: number;
     totalSalary: number;
     totalSwilePayments: number;
-    totalTransportPayments: number;
     averageSalary: number;
     paidTransportCount: number;
     unpaidTransportCount: number;
@@ -38,13 +37,6 @@ export const Statistics: React.FC<StatisticsProps> = ({ statistics }) => {
       icon: CreditCard,
       color: 'text-purple-600',
       bgColor: 'bg-purple-100'
-    },
-    {
-      name: 'Transport Payments',
-      value: formatCurrency(statistics.totalTransportPayments),
-      icon: Truck,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-100'
     }
   ];
 
@@ -76,7 +68,7 @@ export const Statistics: React.FC<StatisticsProps> = ({ statistics }) => {
   return (
     <div className="mb-6">
       {/* Main Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         {stats.map((stat) => {
           const IconComponent = stat.icon;
           return (
@@ -165,7 +157,7 @@ export const Statistics: React.FC<StatisticsProps> = ({ statistics }) => {
             <Info className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
             <div className="text-xs text-blue-800">
               <strong>Note:</strong> Average salary is calculated only from months you worked, excluding "not worked" months. 
-              Transport payments are excluded from worked month averages since they are paid one month later.
+              Transport is included in the salary amount when paid.
             </div>
           </div>
         </div>

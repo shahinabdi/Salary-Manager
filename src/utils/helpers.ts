@@ -26,10 +26,6 @@ export const validateYearlyData = (data: Partial<YearlyData>): ValidationError[]
     if (salaryData.swilePayment !== undefined && salaryData.swilePayment < 0) {
       errors.push({ field: 'swilePayment', message: 'Swile payment cannot be negative' });
     }
-
-    if (salaryData.transportPayment !== undefined && salaryData.transportPayment < 0) {
-      errors.push({ field: 'transportPayment', message: 'Transport payment cannot be negative' });
-    }
   } else if (data.category && ['bonus', 'overtime', 'benefits'].includes(data.category)) {
     // For other entries, just validate amount
     if (data.amount !== undefined && data.amount <= 0) {
@@ -64,6 +60,11 @@ export const formatDate = (year: number, month: number): string => {
   return formatMonthYear(year, month);
 };
 
+export const getMonthName = (month: number): string => {
+  const date = new Date(2000, month - 1, 1);
+  return new Intl.DateTimeFormat('en-US', { month: 'long' }).format(date);
+};
+
 export const exportToJson = (data: YearlyData[], year?: number): string => {
   const filteredData = year ? data.filter(item => item.year === year) : data;
   
@@ -76,7 +77,7 @@ export const exportToJson = (data: YearlyData[], year?: number): string => {
       totalEntries: filteredData.length,
       totalSalary: salaryEntries.reduce((sum, item) => sum + item.salaryNet, 0),
       totalSwilePayments: salaryEntries.reduce((sum, item) => sum + item.swilePayment, 0),
-      totalTransportPayments: salaryEntries.reduce((sum, item) => sum + item.transportPayment, 0),
+      totalTransportPayments: 0, // Keep for backward compatibility
     },
   };
 
@@ -102,19 +103,36 @@ export const parseImportedData = (jsonString: string): YearlyData[] => {
     // Handle both direct array and export format
     const dataArray = Array.isArray(parsed) ? parsed : parsed.yearlyData || [];
     
-    return dataArray.map((item: any) => ({
-      id: item.id || generateId(),
-      year: Number(item.year),
-      month: Number(item.month || 1), // Default to January if not provided
-      salaryNet: Number(item.salaryNet || 0),
-      swilePayment: Number(item.swilePayment || 0),
-      transportPayment: Number(item.transportPayment || 0),
-      transportPaid: Boolean(item.transportPaid),
-      category: item.category || 'salary',
-      notes: item.notes || '',
-      createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-      updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
-    }));
+    return dataArray.map((item: any) => {
+      // Handle legacy data that might have transportPayment
+      if (item.category === 'salary') {
+        return {
+          id: item.id || generateId(),
+          year: Number(item.year),
+          month: Number(item.month || 1),
+          amount: Number(item.salaryNet || item.amount || 0),
+          salaryNet: Number(item.salaryNet || 0),
+          swilePayment: Number(item.swilePayment || 0),
+          transportPaid: Boolean(item.transportPaid),
+          worked: Boolean(item.worked ?? true),
+          category: 'salary',
+          notes: item.notes || '',
+          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+          updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+        } as SalaryEntry;
+      } else {
+        return {
+          id: item.id || generateId(),
+          year: Number(item.year),
+          month: Number(item.month || 1),
+          amount: Number(item.amount || 0),
+          category: item.category,
+          notes: item.notes || '',
+          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+          updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+        };
+      }
+    });
   } catch (error) {
     throw new Error('Invalid JSON format');
   }
@@ -170,8 +188,8 @@ export const getMonthStatus = (data: YearlyData[], targetYear: number, targetMon
   
   // Swile is paid one month later, so we check if previous month's payment is in current month
   const hasSwile = salaryEntry.swilePayment > 0;
-  // Transport is included in salary, so we don't need to check it separately
-  const hasTransport = salaryEntry.transportPayment > 0 && salaryEntry.transportPaid;
+  // Transport is just a checkbox now, indicating if transport was provided
+  const hasTransport = salaryEntry.transportPaid;
 
   return {
     year: targetYear,
@@ -211,7 +229,7 @@ export const isMonthComplete = (data: YearlyData[], targetMonth: number, targetY
   
   const hasSalary = salaryEntry.salaryNet > 0;
   const hasSwile = salaryEntry.swilePayment > 0;
-  // Transport is included in salary, so we don't check it for completion
+  // Transport is just a checkbox, so we don't check it for completion
 
   return hasSalary && hasSwile; // Only salary and swile needed
 };

@@ -146,53 +146,10 @@ export const useDataManagement = () => {
     saveData(updatedData);
   }, [data, saveData]);
 
-  // Transport default value management
-  const getTransportDefault = useCallback((year: number): number => {
-    // Find the most recent salary entry for this year that has a transportDefault value
-    const yearEntries = data.filter(item => 
-      item.year === year && 
-      item.category === 'salary' && 
-      (item as SalaryEntry).transportDefault != null
-    ) as SalaryEntry[];
-    
-    if (yearEntries.length > 0) {
-      // Sort by updatedAt and return the most recent transportDefault
-      yearEntries.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-      return yearEntries[0].transportDefault!;
-    }
-    return 0; // Default to 0 if no default is set
-  }, [data]);
-
-  const setTransportDefault = useCallback((year: number, defaultValue: number) => {
-    // Update all entries for the year with the new default value
-    const updatedData = data.map(item => {
-      if (item.year === year) {
-        return {
-          ...item,
-          transportDefault: defaultValue,
-          updatedAt: new Date(),
-        };
-      }
-      return item;
-    });
-    saveData(updatedData);
-  }, [data, saveData]);
-
-  // Enhanced createItem that uses transport default
+  // Enhanced createItem that uses current form data
   const addItemWithDefaults = useCallback((itemData: Omit<YearlyData, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (itemData.category === 'salary') {
-      const transportDefault = getTransportDefault(itemData.year);
-      const salaryData = itemData as Omit<SalaryEntry, 'id' | 'createdAt' | 'updatedAt'>;
-      const enhancedItemData: Omit<SalaryEntry, 'id' | 'createdAt' | 'updatedAt'> = {
-        ...salaryData,
-        transportDefault,
-        transportPayment: salaryData.transportPayment || transportDefault,
-      };
-      return createItem(enhancedItemData);
-    } else {
-      return createItem(itemData);
-    }
-  }, [createItem, getTransportDefault]);
+    return createItem(itemData);
+  }, [createItem]);
 
   // Statistics
   const statistics = useMemo(() => {
@@ -207,7 +164,6 @@ export const useDataManagement = () => {
       notWorkedMonths: notWorkedMonths.length,
       totalSalary: salaryEntries.reduce((sum, item) => sum + item.salaryNet, 0),
       totalSwilePayments: salaryEntries.reduce((sum, item) => sum + item.swilePayment, 0),
-      totalTransportPayments: salaryEntries.reduce((sum, item) => sum + item.transportPayment, 0),
       averageSalary: workedMonths.length > 0 ? workedMonths.reduce((sum, item) => sum + item.salaryNet, 0) / workedMonths.length : 0,
       paidTransportCount: workedMonths.filter(item => item.transportPaid).length,
       unpaidTransportCount: workedMonths.filter(item => !item.transportPaid).length,
@@ -235,8 +191,6 @@ export const useDataManagement = () => {
     updateItem,
     deleteItem,
     deleteMultiple,
-    getTransportDefault,
-    setTransportDefault,
     
     // Current values
     filters,
