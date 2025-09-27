@@ -98,43 +98,123 @@ export const downloadJson = (data: string, filename: string): void => {
 
 export const parseImportedData = (jsonString: string): YearlyData[] => {
   try {
+    // First, try to parse the JSON
     const parsed = JSON.parse(jsonString);
     
     // Handle both direct array and export format
-    const dataArray = Array.isArray(parsed) ? parsed : parsed.yearlyData || [];
+    let dataArray: any[] = [];
     
-    return dataArray.map((item: any) => {
-      // Handle legacy data that might have transportPayment
-      if (item.category === 'salary') {
-        return {
-          id: item.id || generateId(),
-          year: Number(item.year),
-          month: Number(item.month || 1),
-          amount: Number(item.salaryNet || item.amount || 0),
-          salaryNet: Number(item.salaryNet || 0),
-          swilePayment: Number(item.swilePayment || 0),
-          transportPaid: Boolean(item.transportPaid),
-          worked: Boolean(item.worked ?? true),
-          category: 'salary',
-          notes: item.notes || '',
-          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-          updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
-        } as SalaryEntry;
-      } else {
-        return {
-          id: item.id || generateId(),
-          year: Number(item.year),
-          month: Number(item.month || 1),
-          amount: Number(item.amount || 0),
-          category: item.category,
-          notes: item.notes || '',
-          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-          updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
-        };
+    if (Array.isArray(parsed)) {
+      dataArray = parsed;
+    } else if (parsed.yearlyData && Array.isArray(parsed.yearlyData)) {
+      dataArray = parsed.yearlyData;
+    } else if (parsed.data && Array.isArray(parsed.data)) {
+      dataArray = parsed.data; // Legacy format
+    } else {
+      throw new Error('Invalid JSON structure: Expected an array or object with yearlyData/data property containing array of entries');
+    }
+
+    if (dataArray.length === 0) {
+      throw new Error('No data entries found in the JSON file');
+    }
+
+    const processedData: YearlyData[] = [];
+    const processingErrors: string[] = [];
+
+    dataArray.forEach((item: any, index: number) => {
+      try {
+        // Validate required fields
+        if (!item || typeof item !== 'object') {
+          processingErrors.push(`Entry ${index + 1}: Invalid entry format`);
+          return;
+        }
+
+        if (!item.year || !item.month || !item.category) {
+          processingErrors.push(`Entry ${index + 1}: Missing required fields (year, month, category)`);
+          return;
+        }
+
+        // Validate year and month
+        const year = Number(item.year);
+        const month = Number(item.month);
+        
+        if (isNaN(year) || year < 1900 || year > 2100) {
+          processingErrors.push(`Entry ${index + 1}: Invalid year (${item.year})`);
+          return;
+        }
+        
+        if (isNaN(month) || month < 1 || month > 12) {
+          processingErrors.push(`Entry ${index + 1}: Invalid month (${item.month})`);
+          return;
+        }
+
+        // Handle legacy data that might have transportPayment
+        if (item.category === 'salary') {
+          const salaryEntry = {
+            id: item.id || generateId(),
+            year,
+            month,
+            amount: Number(item.salaryNet || item.amount || 0),
+            salaryNet: Number(item.salaryNet || 0),
+            swilePayment: Number(item.swilePayment || 0),
+            transportPaid: Boolean(item.transportPaid),
+            worked: Boolean(item.worked ?? true),
+            category: 'salary' as const,
+            notes: item.notes || '',
+            createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+            updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+          };
+          
+          processedData.push(salaryEntry as SalaryEntry);
+        } else if (['bonus', 'overtime', 'benefits'].includes(item.category)) {
+          const amount = Number(item.amount || 0);
+          if (amount <= 0) {
+            processingErrors.push(`Entry ${index + 1}: Amount must be greater than 0 for ${item.category} entries`);
+            return;
+          }
+          
+          const otherEntry = {
+            id: item.id || generateId(),
+            year,
+            month,
+            amount,
+            category: item.category,
+            notes: item.notes || '',
+            createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+            updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+          };
+          
+          processedData.push(otherEntry);
+        } else {
+          processingErrors.push(`Entry ${index + 1}: Invalid category '${item.category}'. Must be: salary, bonus, overtime, or benefits`);
+        }
+      } catch (itemError) {
+        processingErrors.push(`Entry ${index + 1}: Processing error - ${itemError instanceof Error ? itemError.message : 'Unknown error'}`);
       }
     });
+
+    // If we have processing errors, include them in the error message
+    if (processingErrors.length > 0) {
+      const errorSummary = `Some entries could not be processed:\n${processingErrors.slice(0, 5).join('\n')}${
+        processingErrors.length > 5 ? `\n... and ${processingErrors.length - 5} more errors` : ''
+      }`;
+      
+      if (processedData.length === 0) {
+        throw new Error(`No valid entries found. ${errorSummary}`);
+      } else {
+        console.warn(`Import completed with ${processingErrors.length} errors:`, processingErrors);
+      }
+    }
+
+    return processedData;
   } catch (error) {
-    throw new Error('Invalid JSON format');
+    if (error instanceof SyntaxError) {
+      throw new Error(`Invalid JSON format: ${error.message}. Please check your JSON syntax.`);
+    } else if (error instanceof Error) {
+      throw error; // Re-throw our custom errors
+    } else {
+      throw new Error('Unknown error occurred while parsing JSON data');
+    }
   }
 };
 
