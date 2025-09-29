@@ -146,6 +146,54 @@ export const useDataManagement = () => {
     saveData(updatedData);
   }, [data, saveData]);
 
+  // Bulk import function to avoid race conditions
+  const bulkCreateItems = useCallback((itemsData: Omit<YearlyData, 'id' | 'createdAt' | 'updatedAt'>[]) => {
+    const newItems: YearlyData[] = [];
+    const errors: string[] = [];
+    
+    itemsData.forEach((itemData, index) => {
+      try {
+        const validationErrors = validateYearlyData(itemData);
+        if (validationErrors.length > 0) {
+          errors.push(`Item ${index + 1}: ${validationErrors.map(e => e.message).join(', ')}`);
+          return;
+        }
+
+        let newItem: YearlyData;
+        
+        if (itemData.category === 'salary') {
+          newItem = {
+            ...(itemData as Omit<SalaryEntry, 'id' | 'createdAt' | 'updatedAt'>),
+            id: (itemData as any).id || generateId(), // Use existing ID if available
+            createdAt: (itemData as any).createdAt ? new Date((itemData as any).createdAt) : new Date(),
+            updatedAt: (itemData as any).updatedAt ? new Date((itemData as any).updatedAt) : new Date(),
+          } as SalaryEntry;
+        } else {
+          newItem = {
+            ...(itemData as Omit<OtherEntry, 'id' | 'createdAt' | 'updatedAt'>),
+            id: (itemData as any).id || generateId(),
+            createdAt: (itemData as any).createdAt ? new Date((itemData as any).createdAt) : new Date(),
+            updatedAt: (itemData as any).updatedAt ? new Date((itemData as any).updatedAt) : new Date(),
+          } as OtherEntry;
+        }
+        
+        newItems.push(newItem);
+      } catch (error) {
+        errors.push(`Item ${index + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    });
+    
+    if (errors.length > 0 && newItems.length === 0) {
+      throw new Error(`Bulk import failed: ${errors.join('; ')}`);
+    }
+    
+    // Save all items at once
+    const updatedData = [...data, ...newItems];
+    saveData(updatedData);
+    
+    return { imported: newItems, errors };
+  }, [data, saveData]);
+
   // Enhanced createItem that uses current form data
   const addItemWithDefaults = useCallback((itemData: Omit<YearlyData, 'id' | 'createdAt' | 'updatedAt'>) => {
     return createItem(itemData);
@@ -191,6 +239,7 @@ export const useDataManagement = () => {
     updateItem,
     deleteItem,
     deleteMultiple,
+    bulkCreateItems,
     
     // Current values
     filters,

@@ -68,7 +68,11 @@ export const MonthStatus: React.FC<MonthStatusProps> = ({ data, selectedYear }) 
     const missing = [];
     if (!hasSalary) missing.push('Salary');
     if (!hasSwile) missing.push('Swile');
-    // Transport is not included in missing since it's part of salary
+    // Note: Transport is optional and doesn't affect completion
+    
+    if (missing.length === 0) {
+      return 'Complete';
+    }
     
     return `Missing: ${missing.join(', ')}`;
   };
@@ -82,9 +86,13 @@ export const MonthStatus: React.FC<MonthStatusProps> = ({ data, selectedYear }) 
       return 'bg-green-50 border-green-200';
     }
     
-    // Only consider salary and swile for completion status colors
-    const missingCount = [hasSalary, hasSwile].filter(x => !x).length;
-    if (missingCount === 2) {
+    // If has salary but missing swile, it's partial
+    if (hasSalary && !hasSwile) {
+      return 'bg-yellow-50 border-yellow-200';
+    }
+    
+    // If missing salary, it's incomplete
+    if (!hasSalary) {
       return 'bg-red-50 border-red-200';
     }
     
@@ -172,12 +180,13 @@ export const MonthStatus: React.FC<MonthStatusProps> = ({ data, selectedYear }) 
         <div className="flex items-start">
           <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
           <div className="text-sm text-blue-800">
-            <p className="font-medium mb-1">Payment Schedule:</p>
-            <p>• Salary is paid in the same month (includes transport)</p>
-            <p>• Swile payments are received one month later</p>
-            <p>• A month is considered complete when it has salary and swile</p>
-            <p>• <strong>Transport is included in salary, not calculated separately</strong></p>
-            <p>• <strong>Mark months as "Not Worked" if you didn't work that month</strong></p>
+            <p className="font-medium mb-1">Completion Rules:</p>
+            <p>• A month is <strong>complete</strong> when it has salary (&gt; €0)</p>
+            <p>• Swile payment can be €0 (if not applicable) or &gt; €0</p>
+            <p>• Transport is optional - it's just a checkbox indicating if provided</p>
+            <p>• <strong>Transport does NOT affect completion status</strong></p>
+            <p>• Mark months as "Not Worked" if you didn't work that month</p>
+            <p>• Not worked months are automatically considered complete</p>
           </div>
         </div>
       </div>

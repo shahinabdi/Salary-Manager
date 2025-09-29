@@ -27,6 +27,7 @@ function App() {
     createItem,
     updateItem,
     deleteItem,
+    bulkCreateItems,
     filters,
     searchTerm
   } = useDataManagement();
@@ -73,31 +74,59 @@ function App() {
     setDeleteConfirm({ isOpen: false, itemId: null });
   }, [deleteConfirm.itemId, deleteItem]);
 
-  const handleImport = useCallback((importedData: YearlyData[]) => {
+  const handleImport = useCallback(async (importedData: YearlyData[]) => {
+    console.log(`🔄 Starting import process...`);
+    console.log(`📊 Current data in app: ${allData.length} entries`);
+    console.log(`📥 Data to import: ${importedData.length} entries`);
+    
     // Merge imported data with existing data, avoiding duplicates
     const existingIds = new Set(allData.map((item: YearlyData) => item.id));
+    const duplicateEntries = importedData.filter(item => existingIds.has(item.id));
     const newData = importedData.filter(item => !existingIds.has(item.id));
     
-    newData.forEach(item => {
-      if (item.category === 'salary') {
-        const salaryItem = item as any; // Cast for legacy compatibility
-        const salaryData = {
-          category: 'salary' as const,
-          year: salaryItem.year,
-          month: salaryItem.month,
-          amount: salaryItem.salaryNet || salaryItem.amount || 0,
-          salaryNet: salaryItem.salaryNet || 0,
-          swilePayment: salaryItem.swilePayment || 0,
-          transportPayment: salaryItem.transportPayment || 0,
-          transportPaid: salaryItem.transportPaid ?? false,
-          worked: salaryItem.worked ?? true,
-          notes: salaryItem.notes || ''
-        };
-        createItem(salaryData as any); // Cast to bypass type checking for legacy data
-      } else {
-        createItem(item);
+    console.log(`🔍 Duplicate analysis:`);
+    console.log(`   - Entries with existing IDs (skipped): ${duplicateEntries.length}`);
+    console.log(`   - New entries to import: ${newData.length}`);
+    
+    let importedCount = 0;
+    let errorCount = 0;
+    
+    // Use bulk import to avoid race conditions
+    try {
+      console.log(`� Starting bulk import of ${newData.length} items...`);
+      
+      const bulkResult = bulkCreateItems(newData as any);
+      importedCount = bulkResult.imported.length;
+      
+      console.log(`✅ Bulk import completed:`);
+      console.log(`   - Successfully imported: ${bulkResult.imported.length}`);
+      console.log(`   - Errors: ${bulkResult.errors.length}`);
+      
+      bulkResult.imported.forEach(item => {
+        console.log(`✅ Imported: ${item.year}-${item.month.toString().padStart(2, '0')} (${item.category})`);
+      });
+      
+      if (bulkResult.errors.length > 0) {
+        console.warn(`⚠️  Import errors:`, bulkResult.errors);
+        errorCount = bulkResult.errors.length;
       }
-    });
+      
+    } catch (error) {
+      console.error(`❌ Bulk import failed completely:`, error);
+      errorCount = newData.length;
+      importedCount = 0;
+    }
+    
+    // Final summary
+    console.log(`🎉 Import completed: ${importedCount} entries imported, ${errorCount} errors`);
+    
+    if (importedCount > 0) {
+      alert(`Import successful!\\n\\n✅ Imported: ${importedCount} new entries${duplicateEntries.length > 0 ? `\\n⚠️ Skipped: ${duplicateEntries.length} duplicates` : ''}${errorCount > 0 ? `\\n❌ Errors: ${errorCount}` : ''}`);
+    } else if (duplicateEntries.length > 0) {
+      alert(`No new data imported!\\n\\nAll ${importedData.length} entries already exist in your app.`);
+    } else {
+      alert(`Import failed!\\n\\n${errorCount} errors occurred.\\n\\nCheck the console for details.`);
+    }
   }, [allData, createItem]);
 
   const handleAddNew = () => {

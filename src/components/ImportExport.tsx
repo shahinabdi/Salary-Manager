@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { YearlyData } from '../types';
-import { exportToJson, downloadJson, parseImportedData } from '../utils/helpers';
+import { exportToJson, downloadJson } from '../utils/helpers';
 import { validateAndDebugJsonImport, generateSampleJsonStructure, suggestJsonFixes } from '../utils/jsonValidator';
 import { Download, Upload, AlertCircle, Info, FileText, CheckCircle } from 'lucide-react';
+import { ImportDebugger } from './ImportDebugger';
 
 interface ImportExportProps {
   data: YearlyData[];
@@ -18,6 +19,7 @@ export const ImportExport: React.FC<ImportExportProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
 
   const handleExport = (yearOnly: boolean = false) => {
     const exportData = yearOnly 
@@ -35,6 +37,7 @@ export const ImportExport: React.FC<ImportExportProps> = ({
 
     setImporting(true);
     setImportError(null);
+    setImportSuccess(null);
 
     try {
       const text = await file.text();
@@ -56,15 +59,28 @@ export const ImportExport: React.FC<ImportExportProps> = ({
       }
 
       if (validationResult.processedData) {
-        onImport(validationResult.processedData);
+        console.log('🚀 Calling onImport with processed data...', validationResult.processedData);
         
-        // Show success message with details
-        const successMsg = `Successfully imported ${validationResult.processedData.length} entries${
-          validationResult.warnings.length > 0 ? ` (${validationResult.warnings.length} warnings - check console)` : ''
-        }`;
-        
-        // You might want to show this as a toast notification instead
-        console.log('✅ Import successful:', successMsg);
+        try {
+          onImport(validationResult.processedData);
+          
+          // Show success message with details
+          const successMsg = `Successfully imported ${validationResult.processedData.length} entries${
+            validationResult.warnings.length > 0 ? ` (${validationResult.warnings.length} warnings - check console)` : ''
+          }`;
+          
+          setImportSuccess(successMsg);
+          setImportError(null);
+          console.log('✅ Import successful:', successMsg);
+          
+          // Clear success message after 5 seconds
+          setTimeout(() => setImportSuccess(null), 5000);
+          
+        } catch (importCallError) {
+          const errorMsg = `Import failed during processing: ${importCallError instanceof Error ? importCallError.message : 'Unknown error'}`;
+          console.error('❌ Import call failed:', importCallError);
+          setImportError(errorMsg);
+        }
       } else {
         setImportError('No valid data found in the imported file');
       }
@@ -165,6 +181,18 @@ export const ImportExport: React.FC<ImportExportProps> = ({
             </div>
           )}
           
+          {importSuccess && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start space-x-2">
+                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-green-800">Import Success</p>
+                  <div className="text-sm text-green-700 mt-1">{importSuccess}</div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-start space-x-2">
               <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -179,6 +207,80 @@ export const ImportExport: React.FC<ImportExportProps> = ({
                 </ul>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Debug Tool */}
+        <div className="mt-4">
+          <ImportDebugger currentData={data} selectedYear={selectedYear} />
+        </div>
+
+        {/* Debug Data Option */}
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h4 className="text-sm font-medium text-blue-800">Debug Current Data</h4>
+              <p className="text-xs text-blue-600 mt-1">
+                Check what data is currently in the app and localStorage.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                console.log('🔍 DEBUGGING CURRENT DATA STATE:');
+                console.log('📊 Current data prop:', data);
+                console.log('📅 Selected year:', selectedYear);
+                console.log('📂 LocalStorage content:', localStorage.getItem('yearlyDataManagement'));
+                try {
+                  const stored = localStorage.getItem('yearlyDataManagement');
+                  if (stored) {
+                    const parsed = JSON.parse(stored);
+                    console.log('📋 Parsed localStorage data:', parsed);
+                    console.log(`📈 Total entries in storage: ${Array.isArray(parsed) ? parsed.length : 'Not an array'}`);
+                  }
+                } catch (e) {
+                  console.error('❌ Failed to parse localStorage data:', e);
+                }
+                alert('Debug information logged to console (F12)');
+              }}
+              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+            >
+              Debug Data
+            </button>
+          </div>
+        </div>
+
+        {/* Clear Data Option */}
+        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-medium text-red-800">Clear All Data</h4>
+              <p className="text-xs text-red-600 mt-1">
+                If you need to test a fresh import, you can clear all existing data first.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                if (confirm('Are you sure you want to clear ALL data? This cannot be undone!\n\nThis will remove all entries from local storage and refresh the page.')) {
+                  try {
+                    // Clear the specific localStorage key
+                    localStorage.removeItem('yearlyDataManagement');
+                    // Also try to clear any other potential keys
+                    console.log('🗑️ Cleared localStorage key: yearlyDataManagement');
+                    
+                    // Force reload after a short delay
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 100);
+                  } catch (error) {
+                    console.error('Failed to clear data:', error);
+                    alert('Failed to clear data. Please try refreshing the page manually.');
+                  }
+                }
+              }}
+              className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+            >
+              Clear All Data
+            </button>
           </div>
         </div>
       </div>

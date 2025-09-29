@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Import Test</title>
+</head>
+<body>
+    <h1>Testing your JSON data</h1>
+    <div id="output"></div>
+    
+    <script>
+        const testData = {
+          "exportDate": "2025-09-29T23:14:15.112Z",
+          "yearlyData": [
+            {
+              "category": "salary",
+              "year": 2025,
+              "month": 3,
+              "amount": 2298.83,
+              "salaryNet": 2298.83,
+              "swilePayment": 162,
+              "transportPaid": true,
+              "worked": true,
+              "notes": "",
+              "id": "1759187487336-ddj2f71c1",
+              "createdAt": "2025-09-29T23:11:27.336Z",
+              "updatedAt": "2025-09-29T23:11:35.580Z"
+            },
+            {
+              "category": "salary",
+              "year": 2025,
+              "month": 4,
+              "amount": 2458.39,
+              "salaryNet": 2458.39,
+              "swilePayment": 210,
+              "transportPaid": true,
+              "worked": true,
+              "notes": "",
+              "id": "1759187510875-ary6088zf",
+              "createdAt": "2025-09-29T23:11:50.875Z",
+              "updatedAt": "2025-09-29T23:12:06.098Z"
+            },
+            {
+              "category": "salary",
+              "year": 2025,
+              "month": 5,
+              "amount": 2565.58,
+              "salaryNet": 2565.58,
+              "swilePayment": 170,
+              "transportPaid": true,
+              "worked": true,
+              "notes": "",
+              "id": "1759187542280-0lga76kje",
+              "createdAt": "2025-09-29T23:12:22.280Z",
+              "updatedAt": "2025-09-29T23:12:22.280Z"
+            },
+            {
+              "category": "salary",
+              "year": 2025,
+              "month": 6,
+              "amount": 2360.4,
+              "salaryNet": 2360.4,
+              "swilePayment": 200,
+              "transportPaid": true,
+              "worked": true,
+              "notes": "",
+              "id": "1759187559222-1uvdf8de5",
+              "createdAt": "2025-09-29T23:12:39.222Z",
+              "updatedAt": "2025-09-29T23:12:39.222Z"
+            },
+            {
+              "category": "salary",
+              "year": 2025,
+              "month": 7,
+              "amount": 2703.26,
+              "salaryNet": 2703.26,
+              "swilePayment": 220,
+              "transportPaid": false,
+              "worked": true,
+              "notes": "",
+              "id": "1759187590952-y4b490nzl",
+              "createdAt": "2025-09-29T23:13:10.952Z",
+              "updatedAt": "2025-09-29T23:13:10.952Z"
+            },
+            {
+              "category": "salary",
+              "year": 2025,
+              "month": 8,
+              "amount": 2520.18,
+              "salaryNet": 2520.18,
+              "swilePayment": 160,
+              "transportPaid": false,
+              "worked": true,
+              "notes": "",
+              "id": "1759187603887-bvjt3h6kc",
+              "createdAt": "2025-09-29T23:13:23.887Z",
+              "updatedAt": "2025-09-29T23:13:32.393Z"
+            },
+            {
+              "category": "salary",
+              "year": 2025,
+              "month": 9,
+              "amount": 2648.11,
+              "salaryNet": 2648.11,
+              "swilePayment": 0,
+              "transportPaid": false,
+              "worked": true,
+              "notes": "",
+              "id": "1759187627869-io4aa5mw6",
+              "createdAt": "2025-09-29T23:13:47.869Z",
+              "updatedAt": "2025-09-29T23:13:47.869Z"
+            }
+          ],
+          "summary": {
+            "totalEntries": 7,
+            "totalSalary": 17554.75,
+            "totalSwilePayments": 1122,
+            "totalTransportPayments": 0
+          }
+        };
+
+        console.log('📊 Your data structure:', testData);
+        console.log('📊 Number of entries:', testData.yearlyData.length);
+        console.log('📊 Months present:', testData.yearlyData.map(entry => `${entry.year}-${entry.month.toString().padStart(2, '0')}`));
+        
+        // Analyze completion status
+        testData.yearlyData.forEach(entry => {
+            const hasSalary = entry.salaryNet > 0;
+            const hasSwile = entry.swilePayment > 0;
+            const hasTransport = entry.transportPaid;
+            // Updated completion logic: salary required, swile can be 0
+            const isComplete = hasSalary && (hasSwile || entry.swilePayment === 0);
+            
+            console.log(`📅 ${entry.year}-${entry.month.toString().padStart(2, '0')}: Salary=${hasSalary ? '✅' : '❌'} Swile=${hasSwile ? '✅' : entry.swilePayment === 0 ? '⭕' : '❌'} Transport=${hasTransport ? '✅' : '❌'} Complete=${isComplete ? '✅' : '❌'}`);
+        });
+        
+        const output = document.getElementById('output');
+        output.innerHTML = `
+            <h2>Analysis Results:</h2>
+            <p><strong>Total entries:</strong> ${testData.yearlyData.length}</p>
+            <p><strong>Months:</strong> ${testData.yearlyData.map(e => `${e.year}-${e.month.toString().padStart(2, '0')}`).join(', ')}</p>
+            <p><strong>Transport issues found:</strong></p>
+            <ul>
+                ${testData.yearlyData.filter(e => !e.transportPaid).map(e => `<li>Month ${e.year}-${e.month.toString().padStart(2, '0')}: Transport NOT paid but should show as complete if salary exists</li>`).join('')}
+            </ul>
+            <p>Check browser console for detailed analysis.</p>
+        `;
+    </script>
+</body>
+</html>

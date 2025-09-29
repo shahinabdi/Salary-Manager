@@ -266,10 +266,16 @@ export const getMonthStatus = (data: YearlyData[], targetYear: number, targetMon
 
   const hasSalary = salaryEntry.salaryNet > 0;
   
-  // Swile is paid one month later, so we check if previous month's payment is in current month
+  // Swile payment check - any amount > 0 means swile was received
   const hasSwile = salaryEntry.swilePayment > 0;
-  // Transport is just a checkbox now, indicating if transport was provided
+  // Transport is just a checkbox indicating if transport was provided/paid
   const hasTransport = salaryEntry.transportPaid;
+
+  // A month is complete when:
+  // 1. Has salary (> 0)
+  // 2. Has swile payment (> 0) OR swile is 0 but explicitly set (not missing)
+  // Note: Transport is optional and doesn't affect completion
+  const isComplete = hasSalary && (hasSwile || salaryEntry.swilePayment === 0);
 
   return {
     year: targetYear,
@@ -278,7 +284,7 @@ export const getMonthStatus = (data: YearlyData[], targetYear: number, targetMon
     hasSwile,
     hasTransport,
     notWorked: false,
-    isComplete: hasSalary && hasSwile // Only salary and swile needed for completion
+    isComplete
   };
 };
 
@@ -295,21 +301,6 @@ export const getYearMonthsStatus = (data: YearlyData[], year: number): MonthStat
 
 // Check if a month should be considered complete based on available data
 export const isMonthComplete = (data: YearlyData[], targetMonth: number, targetYear: number): boolean => {
-  const monthEntries = data.filter(item => 
-    item.month === targetMonth && item.year === targetYear
-  );
-
-  // Find the salary entry for this month
-  const salaryEntry = monthEntries.find(entry => entry.category === 'salary') as SalaryEntry | undefined;
-  
-  if (!salaryEntry) return false; // No salary entry means incomplete
-
-  // If marked as not worked, consider it complete
-  if (!salaryEntry.worked) return true;
-  
-  const hasSalary = salaryEntry.salaryNet > 0;
-  const hasSwile = salaryEntry.swilePayment > 0;
-  // Transport is just a checkbox, so we don't check it for completion
-
-  return hasSalary && hasSwile; // Only salary and swile needed
+  const monthStatus = getMonthStatus(data, targetYear, targetMonth);
+  return monthStatus.isComplete;
 };
