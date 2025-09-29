@@ -3,7 +3,6 @@ import { YearlyData } from '../types';
 import { exportToJson, downloadJson } from '../utils/helpers';
 import { validateAndDebugJsonImport, generateSampleJsonStructure, suggestJsonFixes } from '../utils/jsonValidator';
 import { Download, Upload, AlertCircle, Info, FileText, CheckCircle } from 'lucide-react';
-import { ImportDebugger } from './ImportDebugger';
 
 interface ImportExportProps {
   data: YearlyData[];
@@ -59,26 +58,22 @@ export const ImportExport: React.FC<ImportExportProps> = ({
       }
 
       if (validationResult.processedData) {
-        console.log('🚀 Calling onImport with processed data...', validationResult.processedData);
-        
         try {
           onImport(validationResult.processedData);
           
           // Show success message with details
           const successMsg = `Successfully imported ${validationResult.processedData.length} entries${
-            validationResult.warnings.length > 0 ? ` (${validationResult.warnings.length} warnings - check console)` : ''
+            validationResult.warnings.length > 0 ? ` (${validationResult.warnings.length} warnings)` : ''
           }`;
           
           setImportSuccess(successMsg);
           setImportError(null);
-          console.log('✅ Import successful:', successMsg);
           
           // Clear success message after 5 seconds
           setTimeout(() => setImportSuccess(null), 5000);
           
         } catch (importCallError) {
           const errorMsg = `Import failed during processing: ${importCallError instanceof Error ? importCallError.message : 'Unknown error'}`;
-          console.error('❌ Import call failed:', importCallError);
           setImportError(errorMsg);
         }
       } else {
@@ -210,44 +205,9 @@ export const ImportExport: React.FC<ImportExportProps> = ({
           </div>
         </div>
 
-        {/* Debug Tool */}
-        <div className="mt-4">
-          <ImportDebugger currentData={data} selectedYear={selectedYear} />
-        </div>
 
-        {/* Debug Data Option */}
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h4 className="text-sm font-medium text-blue-800">Debug Current Data</h4>
-              <p className="text-xs text-blue-600 mt-1">
-                Check what data is currently in the app and localStorage.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                console.log('🔍 DEBUGGING CURRENT DATA STATE:');
-                console.log('📊 Current data prop:', data);
-                console.log('📅 Selected year:', selectedYear);
-                console.log('📂 LocalStorage content:', localStorage.getItem('yearlyDataManagement'));
-                try {
-                  const stored = localStorage.getItem('yearlyDataManagement');
-                  if (stored) {
-                    const parsed = JSON.parse(stored);
-                    console.log('📋 Parsed localStorage data:', parsed);
-                    console.log(`📈 Total entries in storage: ${Array.isArray(parsed) ? parsed.length : 'Not an array'}`);
-                  }
-                } catch (e) {
-                  console.error('❌ Failed to parse localStorage data:', e);
-                }
-                alert('Debug information logged to console (F12)');
-              }}
-              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-            >
-              Debug Data
-            </button>
-          </div>
-        </div>
+
+
 
         {/* Clear Data Option */}
         <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -264,15 +224,12 @@ export const ImportExport: React.FC<ImportExportProps> = ({
                   try {
                     // Clear the specific localStorage key
                     localStorage.removeItem('yearlyDataManagement');
-                    // Also try to clear any other potential keys
-                    console.log('🗑️ Cleared localStorage key: yearlyDataManagement');
                     
                     // Force reload after a short delay
                     setTimeout(() => {
                       window.location.reload();
                     }, 100);
                   } catch (error) {
-                    console.error('Failed to clear data:', error);
                     alert('Failed to clear data. Please try refreshing the page manually.');
                   }
                 }

@@ -273,11 +273,9 @@ export const getMonthStatus = (data: YearlyData[], targetYear: number, targetMon
 
   // A month is complete when:
   // 1. Has salary (> 0)
-  // 2. Has swile payment (> 0) OR swile is 0 but explicitly set (not missing)
-  // Note: Transport is optional and doesn't affect completion
-  const isComplete = hasSalary && (hasSwile || salaryEntry.swilePayment === 0);
-
-  return {
+  // 2. Has swile payment (≥ 0) - can be 0
+  // 3. Transport is checked/paid
+  const isComplete = hasSalary && salaryEntry.swilePayment >= 0 && hasTransport;  return {
     year: targetYear,
     month: targetMonth,
     hasSalary,

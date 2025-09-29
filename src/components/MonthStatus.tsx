@@ -56,7 +56,7 @@ export const MonthStatus: React.FC<MonthStatusProps> = ({ data, selectedYear }) 
     return <Clock className="w-5 h-5 text-yellow-500" />;
   };
 
-  const getStatusText = (hasSalary: boolean, hasSwile: boolean, notWorked: boolean, isComplete: boolean) => {
+  const getStatusText = (hasSalary: boolean, hasSwile: boolean, hasTransport: boolean, notWorked: boolean, isComplete: boolean) => {
     if (notWorked) {
       return 'Not Worked';
     }
@@ -68,11 +68,7 @@ export const MonthStatus: React.FC<MonthStatusProps> = ({ data, selectedYear }) 
     const missing = [];
     if (!hasSalary) missing.push('Salary');
     if (!hasSwile) missing.push('Swile');
-    // Note: Transport is optional and doesn't affect completion
-    
-    if (missing.length === 0) {
-      return 'Complete';
-    }
+    if (!hasTransport) missing.push('Transport');
     
     return `Missing: ${missing.join(', ')}`;
   };
@@ -169,7 +165,7 @@ export const MonthStatus: React.FC<MonthStatusProps> = ({ data, selectedYear }) 
                       ? 'text-yellow-700' 
                       : 'text-red-700'
               }`}>
-                {getStatusText(status.hasSalary, status.hasSwile, status.notWorked, status.isComplete)}
+                {getStatusText(status.hasSalary, status.hasSwile, status.hasTransport, status.notWorked, status.isComplete)}
               </p>
             </div>
           </div>
@@ -181,10 +177,10 @@ export const MonthStatus: React.FC<MonthStatusProps> = ({ data, selectedYear }) 
           <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
           <div className="text-sm text-blue-800">
             <p className="font-medium mb-1">Completion Rules:</p>
-            <p>• A month is <strong>complete</strong> when it has salary (&gt; €0)</p>
-            <p>• Swile payment can be €0 (if not applicable) or &gt; €0</p>
-            <p>• Transport is optional - it's just a checkbox indicating if provided</p>
-            <p>• <strong>Transport does NOT affect completion status</strong></p>
+            <p>• A month is <strong>complete</strong> when it has:</p>
+            <p>&nbsp;&nbsp;- Salary (&gt; €0)</p>
+            <p>&nbsp;&nbsp;- Swile payment (≥ €0)</p>
+            <p>&nbsp;&nbsp;- Transport checkbox checked</p>
             <p>• Mark months as "Not Worked" if you didn't work that month</p>
             <p>• Not worked months are automatically considered complete</p>
           </div>
