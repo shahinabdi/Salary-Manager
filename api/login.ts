@@ -36,45 +36,53 @@ function parseBody(req: VercelRequest): LoginBody {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  try {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
 
-  const { email, password } = parseBody(req);
+    const { email, password } = parseBody(req);
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
-  }
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
 
-  const result = await db.query<UserRow>(
-    'SELECT id, email, name, password_hash FROM users WHERE lower(email) = lower($1) LIMIT 1',
-    [email.trim()]
-  );
+    const result = await db.query<UserRow>(
+      'SELECT id, email, name, password_hash FROM users WHERE lower(email) = lower($1) LIMIT 1',
+      [email.trim()]
+    );
 
-  const user = result.rows[0];
+    const user = result.rows[0];
 
-  if (!user) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
-  const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
 
-  if (!isValidPassword) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
 
-  const token = createAuthToken({
-    id: user.id,
-    email: user.email,
-  });
-
-  setAuthCookie(res, token);
-
-  return res.status(200).json({
-    user: {
+    const token = createAuthToken({
       id: user.id,
       email: user.email,
-      name: user.name,
-    },
-  });
+    });
+
+    setAuthCookie(res, token);
+
+    return res.status(200).json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
+    });
+  } catch (error) {
+    console.error('Login API error', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 }
