@@ -7,6 +7,20 @@ declare global {
 
 let pool = globalThis.salaryManagerPgPool;
 
+function normalizeConnectionString(raw: string) {
+  const trimmed = raw.trim();
+
+  // Guard against accidentally quoted env vars in hosting dashboards.
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+
+  return trimmed;
+}
+
 function shouldUseSsl(connectionString: string) {
   try {
     const parsed = new URL(connectionString);
@@ -36,10 +50,17 @@ function getPool() {
     return pool;
   }
 
-  const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  const rawConnectionString =
+    process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING;
+
+  const connectionString = rawConnectionString
+    ? normalizeConnectionString(rawConnectionString)
+    : undefined;
 
   if (!connectionString) {
-    throw new Error('Missing database connection string. Set POSTGRES_URL or DATABASE_URL.');
+    throw new Error(
+      'Missing database connection string. Set POSTGRES_URL, DATABASE_URL, or POSTGRES_URL_NON_POOLING.'
+    );
   }
 
   const ssl = shouldUseSsl(connectionString);

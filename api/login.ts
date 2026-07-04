@@ -19,6 +19,10 @@ type ApiErrorCode =
   | 'MISSING_DB_URL'
   | 'MISSING_JWT_SECRET'
   | 'MISSING_USERS_TABLE'
+  | 'INVALID_DB_CREDENTIALS'
+  | 'INVALID_DB_NAME'
+  | 'DB_NETWORK_ERROR'
+  | 'DB_SSL_ERROR'
   | 'DB_CONNECTION_ERROR'
   | 'INTERNAL_SERVER_ERROR';
 
@@ -54,7 +58,44 @@ function classifyLoginError(error: unknown): { code: ApiErrorCode; status: numbe
     };
   }
 
-  if (['ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', '28P01', '3D000'].includes(errorCode)) {
+  if (errorCode === '28P01') {
+    return {
+      code: 'INVALID_DB_CREDENTIALS',
+      status: 500,
+      message: 'Database credentials are invalid.',
+    };
+  }
+
+  if (errorCode === '3D000') {
+    return {
+      code: 'INVALID_DB_NAME',
+      status: 500,
+      message: 'Database does not exist or is not accessible.',
+    };
+  }
+
+  if (['ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', 'EHOSTUNREACH', 'ECONNRESET'].includes(errorCode)) {
+    return {
+      code: 'DB_NETWORK_ERROR',
+      status: 500,
+      message: 'Database host is unreachable from the server environment.',
+    };
+  }
+
+  if (
+    ['SELF_SIGNED_CERT_IN_CHAIN', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'UNABLE_TO_VERIFY_LEAF_SIGNATURE'].includes(
+      errorCode
+    ) ||
+    /ssl|tls|certificate/i.test(message)
+  ) {
+    return {
+      code: 'DB_SSL_ERROR',
+      status: 500,
+      message: 'Database SSL/TLS negotiation failed.',
+    };
+  }
+
+  if (errorCode) {
     return {
       code: 'DB_CONNECTION_ERROR',
       status: 500,
