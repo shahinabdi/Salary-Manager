@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import bcrypt from 'bcryptjs';
-import { createAuthToken, setAuthCookie } from './_lib/auth';
-import { db } from './_lib/db';
+import { createAuthToken, setAuthCookie } from './_lib/auth.js';
+import { db } from './_lib/db.js';
 
 interface LoginBody {
   email?: string;

@@ -1,6 +1,6 @@
 import type { VercelResponse } from '@vercel/node';
-import { db } from './_lib/db';
-import { type AuthenticatedRequest, withAuth } from './_lib/withAuth';
+import { db } from './_lib/db.js';
+import { type AuthenticatedRequest, withAuth } from './_lib/withAuth.js';
 
 interface UserRow {
   id: number;
