@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { parse, serialize } from 'cookie';
+import cookie from 'cookie';
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 
 const AUTH_COOKIE_NAME = 'salary_manager_auth';
@@ -42,7 +42,7 @@ export function verifyAuthToken(token: string): AppJwtPayload | null {
 }
 
 export function setAuthCookie(res: VercelResponse, token: string) {
-  const serialized = serialize(AUTH_COOKIE_NAME, token, {
+  const serialized = cookie.serialize(AUTH_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -54,7 +54,7 @@ export function setAuthCookie(res: VercelResponse, token: string) {
 }
 
 export function clearAuthCookie(res: VercelResponse) {
-  const serialized = serialize(AUTH_COOKIE_NAME, '', {
+  const serialized = cookie.serialize(AUTH_COOKIE_NAME, '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -72,6 +72,6 @@ export function extractAuthToken(req: VercelRequest): string | null {
     return null;
   }
 
-  const cookies = parse(raw);
+  const cookies = cookie.parse(raw);
   return cookies[AUTH_COOKIE_NAME] || null;
 }
