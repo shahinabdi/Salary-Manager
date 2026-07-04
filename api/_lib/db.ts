@@ -67,10 +67,22 @@ function getPool() {
     );
   }
 
-  const ssl = shouldUseSsl(connectionString);
+  // Force sslmode=require for remote databases (especially Supabase pooler on port 6543)
+  let finalConnectionString = connectionString;
+  try {
+    const url = new URL(connectionString);
+    if (!url.searchParams.has('sslmode')) {
+      url.searchParams.set('sslmode', 'require');
+      finalConnectionString = url.toString();
+    }
+  } catch {
+    // Not a valid URL, use as-is
+  }
+
+  const ssl = shouldUseSsl(finalConnectionString);
 
   pool = new Pool({
-    connectionString,
+    connectionString: finalConnectionString,
     ssl,
     connectionTimeoutMillis: 10_000,
   });
