@@ -15,6 +15,60 @@ interface UserRow {
   password_hash: string;
 }
 
+type ApiErrorCode =
+  | 'MISSING_DB_URL'
+  | 'MISSING_JWT_SECRET'
+  | 'MISSING_USERS_TABLE'
+  | 'DB_CONNECTION_ERROR'
+  | 'INTERNAL_SERVER_ERROR';
+
+function classifyLoginError(error: unknown): { code: ApiErrorCode; status: number; message: string } {
+  const message = error instanceof Error ? error.message : '';
+
+  if (message.includes('Missing database connection string')) {
+    return {
+      code: 'MISSING_DB_URL',
+      status: 500,
+      message: 'Authentication service is misconfigured.',
+    };
+  }
+
+  if (message.includes('Missing JWT_SECRET')) {
+    return {
+      code: 'MISSING_JWT_SECRET',
+      status: 500,
+      message: 'Authentication service is misconfigured.',
+    };
+  }
+
+  const errorCode =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : '';
+
+  if (errorCode === '42P01') {
+    return {
+      code: 'MISSING_USERS_TABLE',
+      status: 500,
+      message: 'Database schema is not initialized.',
+    };
+  }
+
+  if (['ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT', '28P01', '3D000'].includes(errorCode)) {
+    return {
+      code: 'DB_CONNECTION_ERROR',
+      status: 500,
+      message: 'Database connection failed.',
+    };
+  }
+
+  return {
+    code: 'INTERNAL_SERVER_ERROR',
+    status: 500,
+    message: 'Internal server error',
+  };
+}
+
 function parseBody(req: VercelRequest): LoginBody {
   if (!req.body) {
     return {};
@@ -79,10 +133,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
   } catch (error) {
+    const classified = classifyLoginError(error);
+
     console.error('Login API error', {
       message: error instanceof Error ? error.message : 'Unknown error',
+      code: classified.code,
     });
 
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(classified.status).json({
+      error: classified.message,
+      code: classified.code,
+    });
   }
 }
