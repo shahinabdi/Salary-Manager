@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
-import { YearlyData } from './types';
+import { useState, useCallback, useEffect } from 'react';
+import { AuthUser, YearlyData } from './types';
 import { useDataManagement } from './hooks/useDataManagement';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { LoginPage } from './components/LoginPage';
 import { DataForm } from './components/DataForm';
 import { DataTable } from './components/DataTable';
 import { Filters } from './components/Filters';
@@ -11,7 +12,8 @@ import { MonthStatus } from './components/MonthStatus';
 import { ImportExport } from './components/ImportExport';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { PrintModal } from './components/PrintModal';
-import { Plus, Calendar, Database, AlertCircle, Printer } from 'lucide-react';
+import { Plus, Calendar, Database, AlertCircle, Printer, LogOut } from 'lucide-react';
+import { fetchCurrentUser, logoutRequest } from './lib/authApi';
 
 function App() {
   const {
@@ -35,10 +37,28 @@ function App() {
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<YearlyData | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     itemId: string | null;
   }>({ isOpen: false, itemId: null });
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const user = await fetchCurrentUser();
+        setAuthUser(user);
+      } catch (err) {
+        console.error('Failed to fetch current session:', err);
+        setAuthUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    void checkSession();
+  }, []);
 
   // Generate year options (current year ± 10 years)
   const currentYear = new Date().getFullYear();
@@ -139,6 +159,28 @@ function App() {
     setEditingItem(null);
   };
 
+  const handleLogout = async () => {
+    try {
+      await logoutRequest();
+    } catch (err) {
+      console.error('Logout request failed:', err);
+    } finally {
+      setAuthUser(null);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (!authUser) {
+    return <LoginPage onLoginSuccess={setAuthUser} />;
+  }
+
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-gray-50">
@@ -157,6 +199,11 @@ function App() {
               </div>
 
               <div className="flex items-center space-x-4">
+                <div className="hidden sm:block text-right">
+                  <p className="text-sm font-medium text-gray-700">{authUser.name || 'User'}</p>
+                  <p className="text-xs text-gray-500">{authUser.email}</p>
+                </div>
+
                 {/* Year Selector */}
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-5 h-5 text-gray-400" />
@@ -187,6 +234,14 @@ function App() {
                 >
                   <Printer className="w-4 h-4" />
                   <span>Print Report</span>
+                </button>
+
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 transition-colors duration-200"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Logout</span>
                 </button>
               </div>
             </div>

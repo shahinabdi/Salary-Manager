@@ -75,3 +75,9 @@ export interface ExportData {
     totalTransportPayments: number;
   };
 }
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string | null;
+}

@@ -68,6 +68,69 @@ A comprehensive web application for managing and tracking salary, benefits, and 
    http://localhost:5173
    ```
 
+## 🔐 Vercel Login System (Serverless API)
+
+This project now includes a Vercel-compatible login backend using serverless functions in `api/`.
+
+### API Endpoints
+
+- `POST /api/login`: Validates email + password and sets an HttpOnly JWT cookie
+- `GET /api/me`: Returns the currently logged-in user from the auth cookie
+- `POST /api/logout`: Clears the auth cookie
+
+### Required Environment Variables
+
+Add these in Vercel Project Settings → Environment Variables:
+
+```bash
+POSTGRES_URL=postgres://...
+JWT_SECRET=use-a-long-random-secret-value
+```
+
+`DATABASE_URL` is also supported as an alternative to `POSTGRES_URL`.
+
+### Database Schema
+
+Run the schema from:
+
+```bash
+database/schema.sql
+```
+
+You can manually insert users after generating a bcrypt hash:
+
+```bash
+node -e "const b=require('bcryptjs'); b.hash('YourStrongPassword123!', 12).then(console.log)"
+```
+
+Then insert the resulting hash into `users.password_hash`.
+
+### Frontend Fetch Examples
+
+```ts
+// Login (sets HttpOnly cookie)
+await fetch('/api/login', {
+   method: 'POST',
+   headers: { 'Content-Type': 'application/json' },
+   credentials: 'include',
+   body: JSON.stringify({ email, password })
+});
+
+// Current user
+await fetch('/api/me', {
+   method: 'GET',
+   credentials: 'include'
+});
+```
+
+Implemented files:
+
+- `api/_lib/db.ts` (Postgres connection)
+- `api/_lib/auth.ts` (JWT + HttpOnly cookie helpers)
+- `api/_lib/withAuth.ts` (auth middleware)
+- `api/login.ts` and `api/me.ts` (+ optional `api/logout.ts`)
+- `src/components/LoginPage.tsx` + `src/lib/authApi.ts`
+
 ## 📱 Usage Guide
 
 ### Adding Entry Data
