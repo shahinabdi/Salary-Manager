@@ -51,7 +51,11 @@ function getPool() {
   }
 
   const rawConnectionString =
-    process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING;
+    process.env.POSTGRES_URL ||
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.salarymanagement_POSTGRES_URL ||
+    process.env.salarymanagement_POSTGRES_URL_NON_POOLING;
 
   const connectionString = rawConnectionString
     ? normalizeConnectionString(rawConnectionString)
@@ -59,7 +63,7 @@ function getPool() {
 
   if (!connectionString) {
     throw new Error(
-      'Missing database connection string. Set POSTGRES_URL, DATABASE_URL, or POSTGRES_URL_NON_POOLING.'
+      'Missing database connection string. Set POSTGRES_URL, DATABASE_URL, POSTGRES_URL_NON_POOLING, or use Vercel-Supabase integration.'
     );
   }
 
