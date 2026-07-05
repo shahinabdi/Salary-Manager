@@ -351,6 +351,8 @@ export interface MonthlyFinancialSummary {
   billCount: number;
   oneTimeCount: number;
   monthlyCount: number;
+  activeMonthlyBills: BillEntry[];
+  oneTimeBills: BillEntry[];
 }
 
 export const getMonthlyFinancialSummary = (data: YearlyData[], year: number, month: number): MonthlyFinancialSummary => {
@@ -359,10 +361,14 @@ export const getMonthlyFinancialSummary = (data: YearlyData[], year: number, mon
   const billEntries = monthEntries.filter(item => item.category === 'bill') as BillEntry[];
   const otherEntries = monthEntries.filter(item => item.category !== 'salary' && item.category !== 'bill');
 
+  const allBillEntries = data.filter(item => item.category === 'bill' && item.year === year) as BillEntry[];
+  const activeMonthlyBills = getActiveMonthlyBills(allBillEntries, month);
+  const oneTimeBills = billEntries.filter(item => item.billingFrequency === 'one-time');
+
   const salaryTotal = salaryEntries.reduce((sum, item) => sum + item.salaryNet + item.swilePayment, 0);
   const variableIncomeTotal = otherEntries.reduce((sum, item) => sum + item.amount, 0);
-  const monthlyBillsTotal = billEntries.filter(item => item.billingFrequency === 'monthly').reduce((sum, item) => sum + item.amount, 0);
-  const oneTimePaymentsTotal = billEntries.filter(item => item.billingFrequency === 'one-time').reduce((sum, item) => sum + item.amount, 0);
+  const monthlyBillsTotal = activeMonthlyBills.reduce((sum, item) => sum + item.amount, 0);
+  const oneTimePaymentsTotal = oneTimeBills.reduce((sum, item) => sum + item.amount, 0);
   const income = salaryTotal + variableIncomeTotal;
   const expenses = monthlyBillsTotal + oneTimePaymentsTotal;
 
@@ -377,7 +383,29 @@ export const getMonthlyFinancialSummary = (data: YearlyData[], year: number, mon
     monthlyBillsTotal,
     oneTimePaymentsTotal,
     billCount: billEntries.length,
-    oneTimeCount: billEntries.filter(item => item.billingFrequency === 'one-time').length,
-    monthlyCount: billEntries.filter(item => item.billingFrequency === 'monthly').length,
+    oneTimeCount: oneTimeBills.length,
+    monthlyCount: activeMonthlyBills.length,
+    activeMonthlyBills,
+    oneTimeBills,
   };
+};
+
+export const getActiveMonthlyBills = (billEntries: BillEntry[], targetMonth: number): BillEntry[] => {
+  const monthlyEntries = billEntries
+    .filter(item => item.billingFrequency === 'monthly')
+    .sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      if (a.month !== b.month) return a.month - b.month;
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+
+  const latestByTitle = new Map<string, BillEntry>();
+
+  monthlyEntries.forEach((entry) => {
+    if (entry.month <= targetMonth) {
+      latestByTitle.set(entry.title.trim().toLowerCase(), entry);
+    }
+  });
+
+  return Array.from(latestByTitle.values()).sort((a, b) => a.title.localeCompare(b.title));
 };
