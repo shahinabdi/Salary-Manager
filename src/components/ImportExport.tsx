@@ -7,13 +7,15 @@ import { Download, Upload, AlertCircle, Info, FileText, CheckCircle } from 'luci
 interface ImportExportProps {
   data: YearlyData[];
   selectedYear: number;
-  onImport: (data: YearlyData[]) => void;
+  onImport: (data: YearlyData[]) => Promise<void> | void;
+  onClearData: () => Promise<void>;
 }
 
 export const ImportExport: React.FC<ImportExportProps> = ({
   data,
   selectedYear,
-  onImport
+  onImport,
+  onClearData
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
@@ -59,7 +61,7 @@ export const ImportExport: React.FC<ImportExportProps> = ({
 
       if (validationResult.processedData) {
         try {
-          onImport(validationResult.processedData);
+          await onImport(validationResult.processedData);
           
           // Show success message with details
           const successMsg = `Successfully imported ${validationResult.processedData.length} entries${
@@ -219,19 +221,18 @@ export const ImportExport: React.FC<ImportExportProps> = ({
               </p>
             </div>
             <button
-              onClick={() => {
-                if (confirm('Are you sure you want to clear ALL data? This cannot be undone!\n\nThis will remove all entries from local storage and refresh the page.')) {
-                  try {
-                    // Clear the specific localStorage key
-                    localStorage.removeItem('yearlyDataManagement');
-                    
-                    // Force reload after a short delay
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 100);
-                  } catch (error) {
-                    alert('Failed to clear data. Please try refreshing the page manually.');
-                  }
+              onClick={async () => {
+                if (!confirm('Are you sure you want to clear ALL data? This cannot be undone.')) {
+                  return;
+                }
+
+                try {
+                  await onClearData();
+                  setImportSuccess('All your data has been deleted from the server.');
+                  setImportError(null);
+                  setTimeout(() => setImportSuccess(null), 5000);
+                } catch (err) {
+                  setImportError(err instanceof Error ? err.message : 'Failed to clear data.');
                 }
               }}
               className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"

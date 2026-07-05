@@ -30,6 +30,7 @@ function App() {
     updateItem,
     deleteItem,
     bulkCreateItems,
+    clearAllData,
     filters,
     searchTerm
   } = useDataManagement();
@@ -89,7 +90,7 @@ function App() {
 
   const handleDeleteConfirm = useCallback(() => {
     if (deleteConfirm.itemId) {
-      deleteItem(deleteConfirm.itemId);
+      void deleteItem(deleteConfirm.itemId);
     }
     setDeleteConfirm({ isOpen: false, itemId: null });
   }, [deleteConfirm.itemId, deleteItem]);
@@ -113,13 +114,14 @@ function App() {
     
     // Use bulk import to avoid race conditions
     try {
-      console.log(`� Starting bulk import of ${newData.length} items...`);
+      console.log(`Starting bulk import of ${newData.length} items...`);
       
-      const bulkResult = bulkCreateItems(newData as any);
+      const bulkResult = await bulkCreateItems(newData);
       importedCount = bulkResult.imported.length;
       
       console.log(`✅ Bulk import completed:`);
       console.log(`   - Successfully imported: ${bulkResult.imported.length}`);
+      console.log(`   - Skipped duplicates: ${bulkResult.skippedCount}`);
       console.log(`   - Errors: ${bulkResult.errors.length}`);
       
       bulkResult.imported.forEach(item => {
@@ -147,7 +149,7 @@ function App() {
     } else {
       alert(`Import failed!\\n\\n${errorCount} errors occurred.\\n\\nCheck the console for details.`);
     }
-  }, [allData, createItem]);
+  }, [allData, bulkCreateItems]);
 
   const handleAddNew = () => {
     setEditingItem(null);
@@ -296,6 +298,7 @@ function App() {
                 data={allData}
                 selectedYear={selectedYear}
                 onImport={handleImport}
+                onClearData={clearAllData}
               />
             </>
           )}
@@ -308,7 +311,7 @@ function App() {
           onSubmit={handleSubmit}
           initialData={editingItem}
           selectedYear={selectedYear}
-          allData={data}
+          allData={allData}
         />
 
         <ConfirmDialog
