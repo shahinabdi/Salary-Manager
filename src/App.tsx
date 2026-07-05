@@ -8,6 +8,7 @@ import { DataForm } from './components/DataForm';
 import { DataTable } from './components/DataTable';
 import { Filters } from './components/Filters';
 import { Statistics } from './components/Statistics';
+import { YearlyCharts } from './components/YearlyCharts';
 import { MonthStatus } from './components/MonthStatus';
 import { ImportExport } from './components/ImportExport';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -272,6 +273,9 @@ function App() {
             <>
               {/* Statistics */}
               <Statistics statistics={statistics} />
+
+              {/* Interactive Yearly Graphs */}
+              <YearlyCharts data={allData} selectedYear={selectedYear} />
 
               {/* Month Completion Status */}
               <MonthStatus data={allData} selectedYear={selectedYear} />
