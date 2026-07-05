@@ -214,6 +214,7 @@ export const parseImportedData = (jsonString: string): YearlyData[] => {
             category: 'bill' as const,
             title: item.title || '',
             billingFrequency: item.billingFrequency === 'monthly' ? 'monthly' : 'one-time',
+            repeatAllYear: Boolean(item.repeatAllYear),
             notes: item.notes || '',
             createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
             updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
@@ -402,7 +403,7 @@ export const getActiveMonthlyBills = (billEntries: BillEntry[], targetMonth: num
   const latestByTitle = new Map<string, BillEntry>();
 
   monthlyEntries.forEach((entry) => {
-    if (entry.month <= targetMonth) {
+    if (entry.repeatAllYear || entry.month <= targetMonth) {
       latestByTitle.set(entry.title.trim().toLowerCase(), entry);
     }
   });

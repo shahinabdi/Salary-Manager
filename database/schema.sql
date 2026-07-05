@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS bills_entries (
   amount NUMERIC(12, 2) NOT NULL,
   title TEXT NOT NULL,
   billing_frequency TEXT NOT NULL CHECK (billing_frequency IN ('monthly', 'one-time')),
+  repeat_all_year BOOLEAN NOT NULL DEFAULT FALSE,
   notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -28,6 +28,7 @@ export const DataForm: React.FC<DataFormProps> = ({
     amount: 0,
     title: '',
     billingFrequency: 'one-time' as 'monthly' | 'one-time',
+    repeatAllYear: false,
     
     // Salary-specific fields
     salaryNet: 0,
@@ -54,6 +55,7 @@ export const DataForm: React.FC<DataFormProps> = ({
           amount: 0,
           title: '',
           billingFrequency: 'one-time',
+          repeatAllYear: false,
           notes: initialData.notes || ''
         });
       } else if (initialData.category === 'bill') {
@@ -68,6 +70,7 @@ export const DataForm: React.FC<DataFormProps> = ({
           amount: initialData.amount,
           title: initialData.title || '',
           billingFrequency: initialData.billingFrequency,
+          repeatAllYear: initialData.repeatAllYear ?? false,
           notes: initialData.notes || ''
         });
       } else {
@@ -82,6 +85,7 @@ export const DataForm: React.FC<DataFormProps> = ({
           amount: initialData.amount,
           title: '',
           billingFrequency: 'one-time',
+          repeatAllYear: false,
           notes: initialData.notes || ''
         });
       }
@@ -97,6 +101,7 @@ export const DataForm: React.FC<DataFormProps> = ({
         amount: 0,
         title: '',
         billingFrequency: 'one-time',
+        repeatAllYear: false,
         notes: ''
       });
     }
@@ -126,6 +131,10 @@ export const DataForm: React.FC<DataFormProps> = ({
 
       if (!formData.billingFrequency) {
         newErrors.billingFrequency = 'Select a payment frequency';
+      }
+
+      if (formData.billingFrequency !== 'monthly' && formData.repeatAllYear) {
+        newErrors.repeatAllYear = 'Selected-year repeat is only available for monthly bills';
       }
 
       if (!formData.amount || formData.amount <= 0) {
@@ -201,6 +210,7 @@ export const DataForm: React.FC<DataFormProps> = ({
           amount: formData.amount,
           title: formData.title.trim(),
           billingFrequency: formData.billingFrequency,
+          repeatAllYear: formData.billingFrequency === 'monthly' ? formData.repeatAllYear : false,
           notes: formData.notes
         };
         onSubmit(submitData);
@@ -388,6 +398,26 @@ export const DataForm: React.FC<DataFormProps> = ({
                         <option value="one-time">One-time</option>
                       </select>
                       {errors.billingFrequency && <p className="mt-1 text-sm text-red-600">{errors.billingFrequency}</p>}
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50 p-4">
+                      <input
+                        id="repeatAllYear"
+                        type="checkbox"
+                        checked={formData.repeatAllYear}
+                        onChange={(e) => handleInputChange('repeatAllYear', e.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        disabled={formData.billingFrequency !== 'monthly'}
+                      />
+                      <div>
+                        <label htmlFor="repeatAllYear" className="block text-sm font-medium text-gray-900">
+                          Repeat this monthly bill for the selected year (example: 2026)
+                        </label>
+                        <p className="text-sm text-blue-800">
+                          When enabled, this bill appears in every month of the selected year, not only from its starting month.
+                        </p>
+                        {errors.repeatAllYear && <p className="mt-1 text-sm text-red-600">{errors.repeatAllYear}</p>}
+                      </div>
                     </div>
 
                     <div>

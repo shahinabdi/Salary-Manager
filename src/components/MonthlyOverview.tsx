@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { YearlyData } from '../types';
 import { formatCurrency, formatMonthYear, getMonthlyFinancialSummary } from '../utils/helpers';
-import { Calendar, TrendingDown, TrendingUp, Wallet, Receipt, Repeat, ArrowRightCircle } from 'lucide-react';
+import { TrendingDown, TrendingUp, Wallet, Receipt, Repeat, ArrowRightCircle } from 'lucide-react';
 
 interface MonthlyOverviewProps {
   data: YearlyData[];
@@ -34,7 +34,7 @@ export const MonthlyOverview: React.FC<MonthlyOverviewProps> = ({ data, selected
           <Wallet className="w-6 h-6 text-green-600 mr-2" />
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Monthly Money Overview</h2>
-            <p className="text-sm text-gray-500">Shows every month and carries monthly bills forward until you change them.</p>
+            <p className="text-sm text-gray-500">Shows every month and can repeat monthly bills across the selected year only.</p>
           </div>
         </div>
       </div>
@@ -126,7 +126,10 @@ export const MonthlyOverview: React.FC<MonthlyOverviewProps> = ({ data, selected
               {summary.activeMonthlyBills.slice(0, 2).map((bill) => (
                 <div key={bill.id} className="text-xs text-gray-600 flex items-center justify-between">
                   <span className="truncate pr-2">{bill.title}</span>
-                  <span className="font-medium text-gray-900">{formatCurrency(bill.amount)}</span>
+                  <span className="font-medium text-gray-900 flex items-center gap-1">
+                    {bill.repeatAllYear && <ArrowRightCircle className="w-3 h-3 text-blue-500" />}
+                    {formatCurrency(bill.amount)}
+                  </span>
                 </div>
               ))}
               {summary.activeMonthlyBills.length > 2 && (
@@ -148,7 +151,7 @@ export const MonthlyOverview: React.FC<MonthlyOverviewProps> = ({ data, selected
           <Repeat className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
           <div className="text-sm text-blue-800">
             <p className="font-medium mb-1">Recurring monthly bills</p>
-            <p>Monthly expenses repeat across later months until you create a new monthly bill with the same name and amount.</p>
+            <p>Monthly expenses repeat within the selected year (for example, only 2026) until you create a new monthly bill with the same name and amount.</p>
           </div>
         </div>
       </div>

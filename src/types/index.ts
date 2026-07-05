@@ -28,6 +28,7 @@ export interface OtherEntry extends BaseEntry {
 export interface BillEntry extends BaseEntry {
   category: 'bill';
   billingFrequency: BillingFrequency;
+  repeatAllYear: boolean;
 }
 
 export type YearlyData = SalaryEntry | OtherEntry | BillEntry;

@@ -17,6 +17,7 @@ interface DataEntry {
   amount: number;
   title?: string;
   billingFrequency?: BillingFrequency;
+  repeatAllYear?: boolean;
   salaryNet?: number;
   swilePayment?: number;
   transportPaid?: boolean;
@@ -34,6 +35,7 @@ interface EntryRow {
   amount: number;
   title: string | null;
   billing_frequency: BillingFrequency | null;
+  repeat_all_year: boolean | null;
   salary_net: number | null;
   swile_payment: number | null;
   transport_paid: boolean | null;
@@ -61,6 +63,7 @@ async function ensureSalaryEntriesTable() {
       amount NUMERIC(12, 2) NOT NULL,
       title TEXT,
       billing_frequency TEXT CHECK (billing_frequency IN ('monthly', 'one-time')),
+      repeat_all_year BOOLEAN NOT NULL DEFAULT FALSE,
       salary_net NUMERIC(12, 2),
       swile_payment NUMERIC(12, 2),
       transport_paid BOOLEAN,
@@ -81,6 +84,9 @@ async function ensureSalaryEntriesTable() {
 
     ALTER TABLE salary_entries
       ADD COLUMN IF NOT EXISTS billing_frequency TEXT CHECK (billing_frequency IN ('monthly', 'one-time'));
+
+    ALTER TABLE bills_entries
+      ADD COLUMN IF NOT EXISTS repeat_all_year BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
   salaryEntriesTableEnsured = true;
@@ -242,6 +248,7 @@ function normalizeEntry(input: unknown): Omit<DataEntry, 'createdAt' | 'updatedA
       amount,
       title,
       billingFrequency,
+        repeatAllYear: Boolean(raw.repeatAllYear),
       notes,
     };
   }
@@ -266,6 +273,7 @@ function mapRowToEntry(row: EntryRow): DataEntry {
     amount: Number(row.amount),
     title: row.title ?? undefined,
     billingFrequency: row.billing_frequency ?? undefined,
+    repeatAllYear: row.repeat_all_year ?? false,
     salaryNet: row.salary_net === null ? undefined : Number(row.salary_net),
     swilePayment: row.swile_payment === null ? undefined : Number(row.swile_payment),
     transportPaid: row.transport_paid === null ? undefined : Boolean(row.transport_paid),
@@ -295,6 +303,7 @@ async function getUserEntries(userId: number) {
       amount::float8 AS amount,
       title,
       billing_frequency,
+        NULL::boolean AS repeat_all_year,
       salary_net::float8 AS salary_net,
       swile_payment::float8 AS swile_payment,
       transport_paid,
@@ -317,6 +326,7 @@ async function getUserEntries(userId: number) {
       amount::float8 AS amount,
       title,
       billing_frequency,
+      repeat_all_year,
       NULL::float8 AS salary_net,
       NULL::float8 AS swile_payment,
       NULL::boolean AS transport_paid,
@@ -538,8 +548,9 @@ async function saveEntry(userId: number, entry: Omit<DataEntry, 'createdAt' | 'u
         amount,
         title,
         billing_frequency,
+        repeat_all_year,
         notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
       ON CONFLICT (user_id, entry_id) DO NOTHING
       RETURNING
         entry_id,
@@ -549,6 +560,7 @@ async function saveEntry(userId: number, entry: Omit<DataEntry, 'createdAt' | 'u
         amount::float8 AS amount,
         title,
         billing_frequency,
+        repeat_all_year,
         NULL::float8 AS salary_net,
         NULL::float8 AS swile_payment,
         NULL::boolean AS transport_paid,
@@ -565,6 +577,7 @@ async function saveEntry(userId: number, entry: Omit<DataEntry, 'createdAt' | 'u
         entry.amount,
         entry.title ?? '',
         entry.billingFrequency ?? 'one-time',
+        Boolean(entry.repeatAllYear),
         entry.notes ?? '',
       ]
     );
@@ -595,6 +608,7 @@ async function saveEntry(userId: number, entry: Omit<DataEntry, 'createdAt' | 'u
       amount::float8 AS amount,
       title,
       billing_frequency,
+    NULL::boolean AS repeat_all_year,
       salary_net::float8 AS salary_net,
       swile_payment::float8 AS swile_payment,
       transport_paid,
@@ -630,7 +644,8 @@ async function updateEntryRow(userId: number, table: 'salary_entries' | 'bills_e
         amount = $5,
         title = $6,
         billing_frequency = $7,
-        notes = $8,
+        repeat_all_year = $8,
+        notes = $9,
         updated_at = NOW()
       WHERE user_id = $1 AND entry_id = $2
       RETURNING
@@ -641,6 +656,7 @@ async function updateEntryRow(userId: number, table: 'salary_entries' | 'bills_e
         amount::float8 AS amount,
         title,
         billing_frequency,
+        repeat_all_year,
         NULL::float8 AS salary_net,
         NULL::float8 AS swile_payment,
         NULL::boolean AS transport_paid,
@@ -648,7 +664,7 @@ async function updateEntryRow(userId: number, table: 'salary_entries' | 'bills_e
         notes,
         created_at,
         updated_at`,
-      [userId, entryId, entry.year, entry.month, entry.amount, entry.title ?? '', entry.billingFrequency ?? 'one-time', entry.notes ?? '']
+      [userId, entryId, entry.year, entry.month, entry.amount, entry.title ?? '', entry.billingFrequency ?? 'one-time', Boolean(entry.repeatAllYear), entry.notes ?? '']
     );
   }
 
@@ -676,6 +692,7 @@ async function updateEntryRow(userId: number, table: 'salary_entries' | 'bills_e
       amount::float8 AS amount,
       title,
       billing_frequency,
+      NULL::boolean AS repeat_all_year,
       salary_net::float8 AS salary_net,
       swile_payment::float8 AS swile_payment,
       transport_paid,
