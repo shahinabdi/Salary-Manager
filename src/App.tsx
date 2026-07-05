@@ -42,6 +42,7 @@ function App() {
   } = useDataManagement({ enabled: !!authUser && !authLoading });
 
   const [showForm, setShowForm] = useState(false);
+  const [defaultFormCategory, setDefaultFormCategory] = useState<YearlyData['category']>('salary');
   const [editingItem, setEditingItem] = useState<YearlyData | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -159,6 +160,13 @@ function App() {
   }, [allData, bulkCreateItems]);
 
   const handleAddNew = () => {
+    setDefaultFormCategory('salary');
+    setEditingItem(null);
+    setShowForm(true);
+  };
+
+  const handleAddExpense = () => {
+    setDefaultFormCategory('bill');
     setEditingItem(null);
     setShowForm(true);
   };
@@ -234,6 +242,14 @@ function App() {
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Entry</span>
+                </button>
+
+                <button
+                  onClick={handleAddExpense}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Expense</span>
                 </button>
 
                 {/* Print Button */}
@@ -339,6 +355,7 @@ function App() {
           initialData={editingItem}
           selectedYear={selectedYear}
           allData={allData}
+          defaultCategory={defaultFormCategory}
         />
 
         <ConfirmDialog

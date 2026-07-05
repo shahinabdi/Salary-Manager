@@ -9,6 +9,7 @@ interface DataFormProps {
   initialData?: YearlyData | null;
   selectedYear: number;
   allData: YearlyData[]; // All data to check if salary entry exists for validation
+  defaultCategory?: YearlyData['category'];
 }
 
 export const DataForm: React.FC<DataFormProps> = ({
@@ -17,12 +18,13 @@ export const DataForm: React.FC<DataFormProps> = ({
   onSubmit,
   initialData,
   selectedYear,
-  allData
+  allData,
+  defaultCategory = 'salary'
 }) => {
   const [formData, setFormData] = useState({
     year: selectedYear,
     month: new Date().getMonth() + 1, // Current month (1-12)
-    category: 'salary' as 'salary' | 'bonus' | 'overtime' | 'benefits' | 'bill',
+    category: defaultCategory as 'salary' | 'bonus' | 'overtime' | 'benefits' | 'bill',
     amount: 0,
     title: '',
     billingFrequency: 'one-time' as 'monthly' | 'one-time',
@@ -91,7 +93,7 @@ export const DataForm: React.FC<DataFormProps> = ({
         swilePayment: 0,
         transportPaid: false,
         worked: true, // Default to worked
-        category: 'salary',
+        category: defaultCategory,
         amount: 0,
         title: '',
         billingFrequency: 'one-time',
@@ -99,7 +101,7 @@ export const DataForm: React.FC<DataFormProps> = ({
       });
     }
     setErrors({});
-  }, [initialData, selectedYear, isOpen]);
+  }, [initialData, selectedYear, isOpen, defaultCategory]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
