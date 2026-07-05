@@ -70,7 +70,7 @@ export const validateAndDebugJsonImport = (jsonString: string): ImportValidation
         }
 
         // Category validation
-        if (!['salary', 'bonus', 'overtime', 'benefits'].includes(item.category)) {
+        if (!['salary', 'bonus', 'overtime', 'benefits', 'bill'].includes(item.category)) {
           result.warnings.push(`Entry ${index + 1}: Invalid category (${item.category})`);
           return;
         }
@@ -101,6 +101,29 @@ export const validateAndDebugJsonImport = (jsonString: string): ImportValidation
           }
 
           processedData.push(salaryEntry);
+        } else if (item.category === 'bill') {
+          const billEntry = {
+            id: item.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            year,
+            month,
+            amount: Number(item.amount || 0),
+            category: 'bill' as const,
+            title: item.title || '',
+            billingFrequency: item.billingFrequency === 'monthly' ? 'monthly' : 'one-time',
+            notes: item.notes || '',
+            createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+            updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+          };
+
+          if (!billEntry.title) {
+            result.warnings.push(`Entry ${index + 1}: Bill name is required`);
+          }
+
+          if (billEntry.amount <= 0) {
+            result.warnings.push(`Entry ${index + 1}: Amount must be greater than 0 for bill entries`);
+          }
+
+          processedData.push(billEntry);
         } else {
           const otherEntry = {
             id: item.id || `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -108,6 +131,7 @@ export const validateAndDebugJsonImport = (jsonString: string): ImportValidation
             month,
             amount: Number(item.amount || 0),
             category: item.category,
+            title: item.title || '',
             notes: item.notes || '',
             createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
             updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
@@ -176,9 +200,11 @@ export const generateSampleJsonStructure = () => {
         id: "sample2",
         year: 2024,
         month: 1,
-        category: "bonus",
+        category: "bill",
+        title: "Internet",
         amount: 500.00,
-        notes: "Performance bonus",
+        billingFrequency: "monthly",
+        notes: "Recurring internet subscription",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }

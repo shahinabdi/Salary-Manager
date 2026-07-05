@@ -9,6 +9,9 @@ interface StatisticsProps {
     notWorkedMonths: number;
     totalSalary: number;
     totalSwilePayments: number;
+    totalBills: number;
+    totalIncome: number;
+    netOutcome: number;
     averageSalary: number;
     paidTransportCount: number;
     unpaidTransportCount: number;
@@ -30,6 +33,13 @@ export const Statistics: React.FC<StatisticsProps> = ({ statistics }) => {
       icon: DollarSign,
       color: 'text-green-600',
       bgColor: 'bg-green-100'
+    },
+    {
+      name: 'Bill Payments',
+      value: formatCurrency(statistics.totalBills),
+      icon: CreditCard,
+      color: 'text-red-600',
+      bgColor: 'bg-red-100'
     },
     {
       name: 'Swile Payments',
@@ -62,13 +72,17 @@ export const Statistics: React.FC<StatisticsProps> = ({ statistics }) => {
       name: 'Transport Paid',
       value: `${statistics.paidTransportCount} / ${statistics.workedMonths}`,
       subtitle: 'Of worked months'
+    },
+    {
+      name: 'Net Outcome',
+      value: formatCurrency(statistics.netOutcome)
     }
   ];
 
   return (
     <div className="mb-6">
       {/* Main Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
         {stats.map((stat) => {
           const IconComponent = stat.icon;
           return (

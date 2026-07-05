@@ -1,6 +1,6 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import cookie from 'cookie';
 import jwt, { type JwtPayload } from 'jsonwebtoken';
+import type { VercelRequest, VercelResponse } from './vercelTypes.js';
 
 const AUTH_COOKIE_NAME = 'salary_manager_auth';
 const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7;

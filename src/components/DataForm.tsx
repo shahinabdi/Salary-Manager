@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { YearlyData, SalaryEntry, OtherEntry } from '../types';
+import { YearlyData, SalaryEntry, OtherEntry, BillEntry } from '../types';
 import { X } from 'lucide-react';
 
 interface DataFormProps {
@@ -22,8 +22,10 @@ export const DataForm: React.FC<DataFormProps> = ({
   const [formData, setFormData] = useState({
     year: selectedYear,
     month: new Date().getMonth() + 1, // Current month (1-12)
-    category: 'salary' as 'salary' | 'bonus' | 'overtime' | 'benefits',
+    category: 'salary' as 'salary' | 'bonus' | 'overtime' | 'benefits' | 'bill',
     amount: 0,
+    title: '',
+    billingFrequency: 'one-time' as 'monthly' | 'one-time',
     
     // Salary-specific fields
     salaryNet: 0,
@@ -48,6 +50,22 @@ export const DataForm: React.FC<DataFormProps> = ({
           worked: initialData.worked,
           category: initialData.category,
           amount: 0,
+          title: '',
+          billingFrequency: 'one-time',
+          notes: initialData.notes || ''
+        });
+      } else if (initialData.category === 'bill') {
+        setFormData({
+          year: initialData.year,
+          month: initialData.month,
+          salaryNet: 0,
+          swilePayment: 0,
+          transportPaid: false,
+          worked: false,
+          category: initialData.category,
+          amount: initialData.amount,
+          title: initialData.title || '',
+          billingFrequency: initialData.billingFrequency,
           notes: initialData.notes || ''
         });
       } else {
@@ -60,6 +78,8 @@ export const DataForm: React.FC<DataFormProps> = ({
           worked: false,
           category: initialData.category,
           amount: initialData.amount,
+          title: '',
+          billingFrequency: 'one-time',
           notes: initialData.notes || ''
         });
       }
@@ -73,6 +93,8 @@ export const DataForm: React.FC<DataFormProps> = ({
         worked: true, // Default to worked
         category: 'salary',
         amount: 0,
+        title: '',
+        billingFrequency: 'one-time',
         notes: ''
       });
     }
@@ -93,6 +115,18 @@ export const DataForm: React.FC<DataFormProps> = ({
 
       if (formData.swilePayment < 0) {
         newErrors.swilePayment = 'Swile payment cannot be negative';
+      }
+    } else if (formData.category === 'bill') {
+      if (!formData.title.trim()) {
+        newErrors.title = 'Bill name is required';
+      }
+
+      if (!formData.billingFrequency) {
+        newErrors.billingFrequency = 'Select a payment frequency';
+      }
+
+      if (!formData.amount || formData.amount <= 0) {
+        newErrors.amount = 'Amount must be greater than 0';
       }
     } else {
       if (!formData.amount || formData.amount <= 0) {
@@ -134,12 +168,24 @@ export const DataForm: React.FC<DataFormProps> = ({
           notes: formData.notes
         };
         onSubmit(submitData);
+      } else if (formData.category === 'bill') {
+        const submitData: Omit<BillEntry, 'id' | 'createdAt' | 'updatedAt'> = {
+          category: 'bill',
+          year: formData.year,
+          month: formData.month,
+          amount: formData.amount,
+          title: formData.title.trim(),
+          billingFrequency: formData.billingFrequency,
+          notes: formData.notes
+        };
+        onSubmit(submitData);
       } else {
         const submitData: Omit<OtherEntry, 'id' | 'createdAt' | 'updatedAt'> = {
           category: formData.category,
           year: formData.year,
           month: formData.month,
           amount: formData.amount,
+          title: formData.title.trim() || undefined,
           notes: formData.notes
         };
         onSubmit(submitData);
@@ -239,6 +285,7 @@ export const DataForm: React.FC<DataFormProps> = ({
                   <option value="bonus">Bonus</option>
                   <option value="overtime">Overtime</option>
                   <option value="benefits">Benefits</option>
+                  <option value="bill">Bill / Payment</option>
                 </select>
                 {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
               </div>
@@ -281,6 +328,60 @@ export const DataForm: React.FC<DataFormProps> = ({
                     {errors.swilePayment && <p className="mt-1 text-sm text-red-600">{errors.swilePayment}</p>}
                   </div>
                 </>
+                ) : formData.category === 'bill' ? (
+                  <>
+                    <div>
+                      <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                        Bill / Payment Name *
+                      </label>
+                      <input
+                        type="text"
+                        id="title"
+                        value={formData.title}
+                        onChange={(e) => handleInputChange('title', e.target.value)}
+                        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.title ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                        placeholder="Rent, internet, insurance..."
+                      />
+                      {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
+                    </div>
+
+                    <div>
+                      <label htmlFor="billingFrequency" className="block text-sm font-medium text-gray-700 mb-1">
+                        Payment Type
+                      </label>
+                      <select
+                        id="billingFrequency"
+                        value={formData.billingFrequency}
+                        onChange={(e) => handleInputChange('billingFrequency', e.target.value)}
+                        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.billingFrequency ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                      >
+                        <option value="monthly">Monthly</option>
+                        <option value="one-time">One-time</option>
+                      </select>
+                      {errors.billingFrequency && <p className="mt-1 text-sm text-red-600">{errors.billingFrequency}</p>}
+                    </div>
+
+                    <div>
+                      <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+                        Amount €
+                      </label>
+                      <input
+                        type="number"
+                        id="amount"
+                        step="0.01"
+                        value={formData.amount}
+                        onChange={(e) => handleInputChange('amount', parseFloat(e.target.value) || 0)}
+                        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                          errors.amount ? 'border-red-300' : 'border-gray-300'
+                        }`}
+                      />
+                      {errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount}</p>}
+                    </div>
+                  </>
               ) : (
                 <div>
                   <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">

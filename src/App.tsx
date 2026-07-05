@@ -6,8 +6,10 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { LoginPage } from './components/LoginPage';
 import { DataForm } from './components/DataForm';
 import { DataTable } from './components/DataTable';
+import { BillsTable } from './components/BillsTable';
 import { Filters } from './components/Filters';
 import { Statistics } from './components/Statistics';
+import { MonthlyOverview } from './components/MonthlyOverview';
 import { YearlyCharts } from './components/YearlyCharts';
 import { MonthStatus } from './components/MonthStatus';
 import { ImportExport } from './components/ImportExport';
@@ -46,6 +48,9 @@ function App() {
     isOpen: boolean;
     itemId: string | null;
   }>({ isOpen: false, itemId: null });
+
+  const nonBillData = data.filter((item) => item.category !== 'bill');
+  const billData = data.filter((item) => item.category === 'bill');
 
   useEffect(() => {
     const checkSession = async () => {
@@ -126,7 +131,7 @@ function App() {
       console.log(`   - Skipped duplicates: ${bulkResult.skippedCount}`);
       console.log(`   - Errors: ${bulkResult.errors.length}`);
       
-      bulkResult.imported.forEach(item => {
+      bulkResult.imported.forEach((item: YearlyData) => {
         console.log(`✅ Imported: ${item.year}-${item.month.toString().padStart(2, '0')} (${item.category})`);
       });
       
@@ -274,6 +279,9 @@ function App() {
               {/* Statistics */}
               <Statistics statistics={statistics} />
 
+              {/* Monthly Money Overview */}
+              <MonthlyOverview data={allData} selectedYear={selectedYear} />
+
               {/* Interactive Yearly Graphs */}
               <YearlyCharts data={allData} selectedYear={selectedYear} />
 
@@ -288,10 +296,24 @@ function App() {
                 onSearchChange={setSearchTerm}
               />
 
-              {/* Data Table */}
+              {/* Salary / Income Table */}
               <div className="mb-6">
                 <DataTable
-                  data={data}
+                  data={nonBillData}
+                  onEdit={handleEdit}
+                  onDelete={handleDeleteClick}
+                  loading={loading}
+                />
+              </div>
+
+              {/* Bills Table */}
+              <div className="mb-6">
+                <div className="mb-3">
+                  <h2 className="text-lg font-semibold text-gray-900">Bills and One-time Payments</h2>
+                  <p className="text-sm text-gray-500">Monthly bills and single payments are kept separate for easier tracking.</p>
+                </div>
+                <BillsTable
+                  data={billData}
                   onEdit={handleEdit}
                   onDelete={handleDeleteClick}
                   loading={loading}
