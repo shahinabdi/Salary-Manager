@@ -84,6 +84,9 @@ async function ensureSalaryEntriesTable() {
 
     ALTER TABLE salary_entries
       ADD COLUMN IF NOT EXISTS billing_frequency TEXT CHECK (billing_frequency IN ('monthly', 'one-time'));
+
+    ALTER TABLE bills_entries
+      ADD COLUMN IF NOT EXISTS repeat_all_year BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
   salaryEntriesTableEnsured = true;
@@ -107,7 +110,6 @@ async function ensureBillsEntriesTable() {
       amount NUMERIC(12, 2) NOT NULL,
       title TEXT NOT NULL,
       billing_frequency TEXT NOT NULL CHECK (billing_frequency IN ('monthly', 'one-time')),
-      repeat_all_year BOOLEAN NOT NULL DEFAULT FALSE,
       notes TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -116,9 +118,6 @@ async function ensureBillsEntriesTable() {
 
     CREATE INDEX IF NOT EXISTS bills_entries_user_year_month_idx
       ON bills_entries (user_id, year, month);
-
-    ALTER TABLE bills_entries
-      ADD COLUMN IF NOT EXISTS repeat_all_year BOOLEAN NOT NULL DEFAULT FALSE;
   `);
 
   billsEntriesTableEnsured = true;
