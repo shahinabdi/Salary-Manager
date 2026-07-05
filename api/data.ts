@@ -34,6 +34,39 @@ interface EntryRow {
   updated_at: string;
 }
 
+let salaryEntriesTableEnsured = false;
+
+async function ensureSalaryEntriesTable() {
+  if (salaryEntriesTableEnsured) {
+    return;
+  }
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS salary_entries (
+      id BIGSERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      entry_id TEXT NOT NULL,
+      year INTEGER NOT NULL CHECK (year BETWEEN 1900 AND 2100),
+      month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+      category TEXT NOT NULL CHECK (category IN ('salary', 'bonus', 'overtime', 'benefits')),
+      amount NUMERIC(12, 2) NOT NULL,
+      salary_net NUMERIC(12, 2),
+      swile_payment NUMERIC(12, 2),
+      transport_paid BOOLEAN,
+      worked BOOLEAN,
+      notes TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (user_id, entry_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS salary_entries_user_year_month_idx
+      ON salary_entries (user_id, year, month);
+  `);
+
+  salaryEntriesTableEnsured = true;
+}
+
 function parseBody(req: AuthenticatedRequest): unknown {
   if (!req.body) {
     return {};
@@ -179,6 +212,8 @@ async function getUserEntries(userId: number) {
 async function dataHandler(req: AuthenticatedRequest, res: VercelResponse) {
   try {
     const userId = req.auth.userId;
+
+    await ensureSalaryEntriesTable();
 
     if (req.method === 'GET') {
       const entries = await getUserEntries(userId);

@@ -16,6 +16,9 @@ import { Plus, Calendar, Database, AlertCircle, Printer, LogOut } from 'lucide-r
 import { fetchCurrentUser, logoutRequest } from './lib/authApi';
 
 function App() {
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
   const {
     data,
     allData,
@@ -33,13 +36,11 @@ function App() {
     clearAllData,
     filters,
     searchTerm
-  } = useDataManagement();
+  } = useDataManagement({ enabled: !!authUser && !authLoading });
 
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState<YearlyData | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     itemId: string | null;

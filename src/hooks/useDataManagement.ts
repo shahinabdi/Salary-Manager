@@ -10,7 +10,12 @@ import {
   bulkImportEntries,
 } from '../lib/dataApi';
 
-export const useDataManagement = () => {
+interface UseDataManagementOptions {
+  enabled?: boolean;
+}
+
+export const useDataManagement = (options: UseDataManagementOptions = {}) => {
+  const enabled = options.enabled ?? true;
   const [data, setData] = useState<YearlyData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +25,13 @@ export const useDataManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const loadData = useCallback(async () => {
+    if (!enabled) {
+      setData([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -32,12 +44,19 @@ export const useDataManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   // Load data on mount
   useEffect(() => {
+    if (!enabled) {
+      setData([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     void loadData();
-  }, [loadData]);
+  }, [enabled, loadData]);
 
   // Filter and sort data
   const filteredAndSortedData = useMemo(() => {
