@@ -141,6 +141,34 @@ function isCategory(value: unknown): value is EntryCategory {
   return ['salary', 'bonus', 'overtime', 'benefits', 'bill'].includes(String(value));
 }
 
+function normalizeBillTitle(title: unknown) {
+  return String(title ?? '').trim().toLowerCase();
+}
+
+async function hasDuplicateBillEntry(userId: number, year: number, month: number, title: string, excludeEntryId?: string) {
+  const query = excludeEntryId
+    ? `SELECT entry_id
+      FROM bills_entries
+      WHERE user_id = $1
+        AND year = $2
+        AND month = $3
+        AND LOWER(TRIM(title)) = $4
+        AND entry_id <> $5
+      LIMIT 1`
+    : `SELECT entry_id
+      FROM bills_entries
+      WHERE user_id = $1
+        AND year = $2
+        AND month = $3
+        AND LOWER(TRIM(title)) = $4
+      LIMIT 1`;
+
+  const params = excludeEntryId ? [userId, year, month, title, excludeEntryId] : [userId, year, month, title];
+  const duplicateResult = await db.query<{ entry_id: string }>(query, params);
+
+  return duplicateResult.rowCount > 0;
+}
+
 function normalizeEntry(input: unknown): Omit<DataEntry, 'createdAt' | 'updatedAt'> {
   if (!input || typeof input !== 'object') {
     throw new Error('Invalid entry payload');
@@ -333,12 +361,23 @@ async function dataHandler(req: any, res: VercelResponse) {
         const skippedIds: string[] = [];
 
         for (const entry of normalizedEntries) {
-          const result = await saveEntry(userId, entry);
+          try {
+            const result = await saveEntry(userId, entry);
 
-          if (result.rowCount && result.rowCount > 0) {
-            importedIds.push(entry.id);
-          } else {
-            skippedIds.push(entry.id);
+            if (result.rowCount && result.rowCount > 0) {
+              importedIds.push(entry.id);
+            } else {
+              skippedIds.push(entry.id);
+            }
+          } catch (entryError) {
+            const message = entryError instanceof Error ? entryError.message : '';
+
+            if (message.includes('already exists for this month')) {
+              skippedIds.push(entry.id);
+              continue;
+            }
+
+            throw entryError;
           }
         }
 
@@ -429,6 +468,13 @@ async function dataHandler(req: any, res: VercelResponse) {
       };
 
       const entry = normalizeEntry(merged);
+      if (entry.category === 'bill') {
+        const duplicateBill = await hasDuplicateBillEntry(userId, entry.year, entry.month, normalizeBillTitle(entry.title), payload.id);
+
+        if (duplicateBill) {
+          return res.status(409).json({ error: 'A bill with this name already exists for this month' });
+        }
+      }
       const result = await updateEntryRow(userId, entryTable!, payload.id, entry);
 
       return res.status(200).json({ entry: mapRowToEntry(result.rows[0]) });
@@ -477,6 +523,11 @@ async function dataHandler(req: any, res: VercelResponse) {
 
 async function saveEntry(userId: number, entry: Omit<DataEntry, 'createdAt' | 'updatedAt'>) {
   if (entry.category === 'bill') {
+    const duplicateBill = await hasDuplicateBillEntry(userId, entry.year, entry.month, normalizeBillTitle(entry.title));
+    if (duplicateBill) {
+      throw new Error('A bill with this name already exists for this month');
+    }
+
     return db.query<EntryRow>(
       `INSERT INTO bills_entries (
         user_id,

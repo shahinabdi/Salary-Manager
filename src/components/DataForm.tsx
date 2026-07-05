@@ -105,6 +105,7 @@ export const DataForm: React.FC<DataFormProps> = ({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
+    const normalizedBillTitle = formData.title.trim().toLowerCase();
 
     if (!formData.month || formData.month < 1 || formData.month > 12) {
       newErrors.month = 'Please select a valid month';
@@ -129,6 +130,28 @@ export const DataForm: React.FC<DataFormProps> = ({
 
       if (!formData.amount || formData.amount <= 0) {
         newErrors.amount = 'Amount must be greater than 0';
+      }
+
+      if (normalizedBillTitle) {
+        const duplicateBill = allData.find((entry) => {
+          if (entry.category !== 'bill') {
+            return false;
+          }
+
+          if (initialData && entry.id === initialData.id) {
+            return false;
+          }
+
+          return (
+            entry.year === formData.year &&
+            entry.month === formData.month &&
+            entry.title?.trim().toLowerCase() === normalizedBillTitle
+          );
+        });
+
+        if (duplicateBill) {
+          newErrors.title = 'A bill with this name already exists for this month';
+        }
       }
     } else {
       if (!formData.amount || formData.amount <= 0) {
