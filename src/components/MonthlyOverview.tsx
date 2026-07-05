@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { YearlyData } from '../types';
 import { formatCurrency, formatMonthYear, getMonthlyFinancialSummary } from '../utils/helpers';
-import { TrendingDown, TrendingUp, Wallet, Receipt, Repeat, ArrowRightCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { TrendingDown, TrendingUp, Wallet, Receipt, Repeat, ArrowRightCircle } from 'lucide-react';
 
 interface MonthlyOverviewProps {
   data: YearlyData[];
@@ -9,8 +9,6 @@ interface MonthlyOverviewProps {
 }
 
 export const MonthlyOverview: React.FC<MonthlyOverviewProps> = ({ data, selectedYear }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
   const monthlySummaries = useMemo(
     () => Array.from({ length: 12 }, (_, index) => getMonthlyFinancialSummary(data, selectedYear, index + 1)),
     [data, selectedYear]
@@ -39,21 +37,8 @@ export const MonthlyOverview: React.FC<MonthlyOverviewProps> = ({ data, selected
             <p className="text-sm text-gray-500">Shows every month and can repeat monthly bills across the selected year only.</p>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={() => setIsCollapsed((prev) => !prev)}
-          className="inline-flex items-center gap-2 self-start lg:self-auto px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors duration-200"
-          aria-expanded={!isCollapsed}
-          aria-label={isCollapsed ? 'Expand monthly overview' : 'Collapse monthly overview'}
-        >
-          {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          {isCollapsed ? 'Expand' : 'Collapse'}
-        </button>
       </div>
 
-      {!isCollapsed && (
-      <>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200">
           <div className="flex items-center justify-between mb-2">
@@ -170,8 +155,6 @@ export const MonthlyOverview: React.FC<MonthlyOverviewProps> = ({ data, selected
           </div>
         </div>
       </div>
-      </>
-      )}
     </div>
   );
 };
