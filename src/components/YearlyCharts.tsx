@@ -8,6 +8,8 @@ interface YearlyChartsProps {
   selectedYear: number;
 }
 
+type SeriesKey = 'salary' | 'swile' | 'extras' | 'total';
+
 interface MonthAggregate {
   month: number;
   salary: number;
@@ -84,6 +86,24 @@ export const YearlyCharts: React.FC<YearlyChartsProps> = ({ data, selectedYear }
   const yearly = useMemo(() => buildYearAggregates(data), [data]);
   const [openYears, setOpenYears] = useState<Record<number, boolean>>({ [selectedYear]: true });
   const [hoveredMonthByYear, setHoveredMonthByYear] = useState<Record<number, number | null>>({});
+  const [visibleSeriesByYear, setVisibleSeriesByYear] = useState<
+    Record<number, Record<SeriesKey, boolean>>
+  >({});
+
+  const isSeriesVisible = (year: number, key: SeriesKey) => visibleSeriesByYear[year]?.[key] ?? true;
+
+  const toggleSeries = (year: number, key: SeriesKey) => {
+    setVisibleSeriesByYear((prev) => ({
+      ...prev,
+      [year]: {
+        salary: prev[year]?.salary ?? true,
+        swile: prev[year]?.swile ?? true,
+        extras: prev[year]?.extras ?? true,
+        total: prev[year]?.total ?? true,
+        [key]: !(prev[year]?.[key] ?? true),
+      },
+    }));
+  };
 
   const toggleYear = (year: number) => {
     setOpenYears((prev) => ({
@@ -117,10 +137,30 @@ export const YearlyCharts: React.FC<YearlyChartsProps> = ({ data, selectedYear }
       <div className="space-y-4">
         {yearly.map((yearData) => {
           const isOpen = openYears[yearData.year] ?? yearData.year === selectedYear;
-          const maxMonthlyValue = Math.max(
-            1,
-            ...yearData.months.map((month) => month.salary + month.swile + month.extras)
-          );
+          const salarySeries = yearData.months.map((month) => month.salary);
+          const swileSeries = yearData.months.map((month) => month.swile);
+          const extrasSeries = yearData.months.map((month) => month.extras);
+          const totalSeries = yearData.months.map((month) => month.salary + month.swile + month.extras);
+
+          const seriesConfig: Array<{ key: SeriesKey; label: string; color: string; values: number[] }> = [
+            { key: 'salary', label: 'Salary', color: '#0ea5e9', values: salarySeries },
+            { key: 'swile', label: 'Swile', color: '#6366f1', values: swileSeries },
+            { key: 'extras', label: 'Extras', color: '#10b981', values: extrasSeries },
+            { key: 'total', label: 'Total', color: '#0f172a', values: totalSeries },
+          ];
+
+          const activeSeries = seriesConfig.filter((series) => isSeriesVisible(yearData.year, series.key));
+          const maxChartValue = Math.max(1, ...activeSeries.flatMap((series) => series.values));
+
+          const chartWidth = 860;
+          const chartHeight = 250;
+          const margin = { top: 16, right: 20, bottom: 34, left: 42 };
+          const plotWidth = chartWidth - margin.left - margin.right;
+          const plotHeight = chartHeight - margin.top - margin.bottom;
+          const stepX = plotWidth / 11;
+
+          const getX = (index: number) => margin.left + stepX * index;
+          const getY = (value: number) => margin.top + plotHeight - (value / maxChartValue) * plotHeight;
 
           const salaryShare = yearData.totalAll > 0 ? (yearData.totalSalary / yearData.totalAll) * 100 : 0;
           const swileShare = yearData.totalAll > 0 ? (yearData.totalSwile / yearData.totalAll) * 100 : 0;
@@ -182,58 +222,118 @@ export const YearlyCharts: React.FC<YearlyChartsProps> = ({ data, selectedYear }
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-2">Monthly Composition (hover bars)</p>
-                    <div className="overflow-x-auto">
-                      <div className="min-w-[780px] h-56 flex items-end gap-2 p-3 border border-slate-200 rounded-lg bg-gradient-to-b from-white via-slate-50 to-slate-100">
-                        {yearData.months.map((month) => {
-                          const salaryHeight = (month.salary / maxMonthlyValue) * 170;
-                          const swileHeight = (month.swile / maxMonthlyValue) * 170;
-                          const extrasHeight = (month.extras / maxMonthlyValue) * 170;
+                    <p className="text-sm font-medium text-slate-700 mb-2">Monthly Trend (click legend to hide/show lines)</p>
 
-                          return (
-                            <div
-                              key={month.month}
-                              className="flex-1 min-w-[52px]"
-                              onMouseEnter={() =>
-                                setHoveredMonthByYear((prev) => ({ ...prev, [yearData.year]: month.month }))
-                              }
-                              onMouseLeave={() =>
-                                setHoveredMonthByYear((prev) => ({ ...prev, [yearData.year]: null }))
-                              }
-                            >
-                              <div className="h-44 flex items-end justify-center gap-1.5">
-                                <div
-                                  className="w-3 bg-sky-500 rounded-t transition-all duration-200"
-                                  style={{ height: `${salaryHeight}px` }}
-                                  title={`${monthShortName(month.month)} Salary: ${formatCurrency(month.salary)}`}
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {seriesConfig.map((series) => {
+                        const visible = isSeriesVisible(yearData.year, series.key);
+                        return (
+                          <button
+                            key={series.key}
+                            type="button"
+                            onClick={() => toggleSeries(yearData.year, series.key)}
+                            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                              visible
+                                ? 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                                : 'bg-slate-100 text-slate-400 border-slate-200 hover:bg-slate-200'
+                            }`}
+                          >
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ backgroundColor: visible ? series.color : '#cbd5e1' }}
+                            />
+                            {series.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <div className="min-w-[780px] border border-slate-200 rounded-lg bg-gradient-to-b from-white via-slate-50 to-slate-100 p-2">
+                        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-56">
+                          {Array.from({ length: 5 }, (_, i) => {
+                            const y = margin.top + (plotHeight / 4) * i;
+                            return (
+                              <line
+                                key={i}
+                                x1={margin.left}
+                                y1={y}
+                                x2={chartWidth - margin.right}
+                                y2={y}
+                                stroke="#e2e8f0"
+                                strokeDasharray="4 4"
+                              />
+                            );
+                          })}
+
+                          {activeSeries.map((series) => {
+                            const points = series.values
+                              .map((value, index) => `${getX(index)},${getY(value)}`)
+                              .join(' ');
+
+                            return (
+                              <g key={series.key}>
+                                <polyline
+                                  fill="none"
+                                  stroke={series.color}
+                                  strokeWidth="2.5"
+                                  points={points}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
                                 />
-                                <div
-                                  className="w-3 bg-indigo-500 rounded-t transition-all duration-200"
-                                  style={{ height: `${swileHeight}px` }}
-                                  title={`${monthShortName(month.month)} Swile: ${formatCurrency(month.swile)}`}
+                                {series.values.map((value, index) => (
+                                  <circle
+                                    key={`${series.key}-${index}`}
+                                    cx={getX(index)}
+                                    cy={getY(value)}
+                                    r="4"
+                                    fill={series.color}
+                                    stroke="#ffffff"
+                                    strokeWidth="1.5"
+                                  />
+                                ))}
+                              </g>
+                            );
+                          })}
+
+                          {yearData.months.map((month, index) => {
+                            const x = getX(index);
+                            return (
+                              <g key={`x-${month.month}`}>
+                                <text x={x} y={chartHeight - 8} textAnchor="middle" fontSize="11" fill="#64748b">
+                                  {monthShortName(month.month)}
+                                </text>
+                                <rect
+                                  x={x - stepX / 2}
+                                  y={margin.top}
+                                  width={stepX}
+                                  height={plotHeight}
+                                  fill="transparent"
+                                  onMouseEnter={() =>
+                                    setHoveredMonthByYear((prev) => ({ ...prev, [yearData.year]: month.month }))
+                                  }
+                                  onMouseLeave={() =>
+                                    setHoveredMonthByYear((prev) => ({ ...prev, [yearData.year]: null }))
+                                  }
                                 />
-                                <div
-                                  className="w-3 bg-emerald-500 rounded-t transition-all duration-200"
-                                  style={{ height: `${extrasHeight}px` }}
-                                  title={`${monthShortName(month.month)} Extras: ${formatCurrency(month.extras)}`}
-                                />
-                              </div>
-                              <p className="text-[11px] text-center text-slate-600 mt-1">{monthShortName(month.month)}</p>
-                            </div>
-                          );
-                        })}
+                              </g>
+                            );
+                          })}
+                        </svg>
                       </div>
                     </div>
 
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-600">
-                      <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-sky-500" />Salary</span>
-                      <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-indigo-500" />Swile</span>
-                      <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500" />Extras</span>
+                      <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-sky-500" />Salary line</span>
+                      <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-indigo-500" />Swile line</span>
+                      <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-500" />Extras line</span>
+                      <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-900" />Total line</span>
                     </div>
 
                     {hoveredData && (
                       <div className="mt-3 text-xs rounded-md bg-slate-100 p-2 text-slate-700 border border-slate-200">
-                        {monthShortName(hoveredData.month)}: {formatCurrency(hoveredData.salary + hoveredData.swile + hoveredData.extras)}
+                        {monthShortName(hoveredData.month)}:{' '}
+                        {formatCurrency(hoveredData.salary + hoveredData.swile + hoveredData.extras)} total
                         {' '}({formatCurrency(hoveredData.salary)} salary, {formatCurrency(hoveredData.swile)} swile, {formatCurrency(hoveredData.extras)} extras)
                       </div>
                     )}
