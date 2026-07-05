@@ -11,10 +11,15 @@ interface AppJwtPayload extends JwtPayload {
 }
 
 function getJwtSecret() {
-  const secret = process.env.JWT_SECRET;
+  const secret =
+    process.env.JWT_SECRET ||
+    process.env.SUPABASE_JWT_SECRET ||
+    process.env.salarymanagement_SUPABASE_JWT_SECRET;
 
   if (!secret) {
-    throw new Error('Missing JWT_SECRET environment variable.');
+    throw new Error(
+      'Missing JWT secret environment variable. Set JWT_SECRET or SUPABASE_JWT_SECRET (including Vercel integration prefixed vars).'
+    );
   }
 
   return secret;
