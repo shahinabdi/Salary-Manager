@@ -61,6 +61,7 @@ function getPool() {
     process.env.POSTGRES_URL ||
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.salarymanagement_POSTGRES_PRISMA_URL ||
     process.env.salarymanagement_POSTGRES_URL ||
     process.env.salarymanagement_POSTGRES_URL_NON_POOLING;
 
@@ -74,14 +75,25 @@ function getPool() {
     );
   }
 
-  // Force sslmode=require for remote databases (especially Supabase pooler on port 6543)
+  // Normalize SSL mode for remote databases.
   let finalConnectionString = connectionString;
   try {
     const url = new URL(connectionString);
-    if (!url.searchParams.has('sslmode')) {
+    const host = url.hostname.toLowerCase();
+    const currentSslMode = url.searchParams.get('sslmode')?.toLowerCase();
+    const isSupabaseHost = host.endsWith('.supabase.co') || host.endsWith('.pooler.supabase.com');
+
+    if (isSupabaseHost) {
+      // Supabase pooler can fail cert-chain validation in some serverless environments.
+      // no-verify keeps TLS encryption while skipping CA chain validation.
+      if (!currentSslMode || currentSslMode === 'require') {
+        url.searchParams.set('sslmode', 'no-verify');
+      }
+    } else if (!currentSslMode) {
       url.searchParams.set('sslmode', 'require');
-      finalConnectionString = url.toString();
     }
+
+    finalConnectionString = url.toString();
   } catch {
     // Not a valid URL, use as-is
   }
