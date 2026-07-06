@@ -183,10 +183,11 @@ export const DataForm: React.FC<DataFormProps> = ({
         };
 
         if (!initialData && formData.repeatAllYear) {
-          // Expand to all 12 months of selected year
+          // Expand from selected month through December
+          const remaining = 12 - formData.month + 1;
           const expanded: Array<Omit<BillEntry, 'id' | 'createdAt' | 'updatedAt'>> = Array.from(
-            { length: 12 },
-            (_, i) => ({ ...base, month: i + 1, year: formData.year })
+            { length: remaining },
+            (_, i) => ({ ...base, month: formData.month + i, year: formData.year })
           );
           onSubmit(expanded);
         } else {
@@ -457,7 +458,7 @@ export const DataForm: React.FC<DataFormProps> = ({
                       className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
                     />
                     <label htmlFor="repeatAllYear" className="ml-2 block text-sm font-medium text-gray-700">
-                      Repeat for all months of {formData.year}
+                      Repeat until end of {formData.year}
                     </label>
                   </div>
                 )}
@@ -500,7 +501,7 @@ export const DataForm: React.FC<DataFormProps> = ({
                     ? 'Update Bill'
                     : 'Update Entry'
                   : isBill && formData.repeatAllYear
-                  ? `Add Bill for all 12 months of ${formData.year}`
+                  ? `Add Bill until Dec ${formData.year} (${12 - formData.month + 1} months)`
                   : isBill
                   ? 'Add Bill'
                   : 'Create Entry'}
