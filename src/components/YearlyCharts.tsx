@@ -57,7 +57,8 @@ function buildYearAggregates(entries: YearlyData[]): YearAggregate[] {
       slot.salary += salaryEntry.salaryNet;
       slot.swile += salaryEntry.swilePayment;
       slot.worked = slot.worked || salaryEntry.worked;
-    } else {
+    } else if (entry.category !== 'bill') {
+      // bonus / overtime / benefits only — bills are expenses, not income extras
       slot.extras += entry.amount;
     }
   }
