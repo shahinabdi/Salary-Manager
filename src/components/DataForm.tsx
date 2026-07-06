@@ -187,7 +187,7 @@ export const DataForm: React.FC<DataFormProps> = ({
           month: formData.month,
           amount: formData.amount,
           title: formData.title.trim(),
-          billingFrequency: formData.billingFrequency,
+          billingFrequency: formData.repeatMode !== 'none' ? 'monthly' : 'one-time',
           repeatAllYear: formData.repeatMode !== 'none',
           notes: formData.notes,
         };
@@ -462,22 +462,25 @@ export const DataForm: React.FC<DataFormProps> = ({
             {/* Bill options row */}
             {isBill && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="billingFrequency" className="block text-sm font-medium text-gray-700 mb-1">
-                    Billing Frequency
-                  </label>
-                  <select
-                    id="billingFrequency"
-                    value={formData.billingFrequency}
-                    onChange={(e) => handleInputChange('billingFrequency', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="monthly">Monthly</option>
-                    <option value="one-time">One-time</option>
-                  </select>
-                </div>
+                {/* For editing: keep the frequency dropdown visible */}
+                {isEditing && (
+                  <div>
+                    <label htmlFor="billingFrequency" className="block text-sm font-medium text-gray-700 mb-1">
+                      Billing Frequency
+                    </label>
+                    <select
+                      id="billingFrequency"
+                      value={formData.billingFrequency}
+                      onChange={(e) => handleInputChange('billingFrequency', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="one-time">One-time</option>
+                    </select>
+                  </div>
+                )}
 
-                {!isEditing && formData.billingFrequency === 'monthly' && (
+                {!isEditing && (
                   <div className="col-span-full">
                     <label className="block text-sm font-medium text-gray-700 mb-2">Repeat</label>
                     <div className="flex flex-col gap-2">
