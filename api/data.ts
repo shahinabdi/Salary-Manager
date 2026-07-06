@@ -516,7 +516,14 @@ async function dataHandler(req: any, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Data API error', { message });
+    const pgCode = typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : undefined;
+    const pgDetail = typeof error === 'object' && error !== null && 'detail' in error
+      ? String((error as { detail?: unknown }).detail)
+      : undefined;
+
+    console.error('Data API error', { message, pgCode, pgDetail });
 
     if (isPgMissingTableError(error)) {
       return res.status(500).json({
@@ -528,7 +535,14 @@ async function dataHandler(req: any, res: VercelResponse) {
       return res.status(400).json({ error: message });
     }
 
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({
+      error: 'Internal server error',
+      debug: {
+        message,
+        code: pgCode,
+        detail: pgDetail,
+      },
+    });
   }
 }
 
