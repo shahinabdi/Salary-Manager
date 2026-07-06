@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { YearlyData, SalaryEntry, OtherEntry, BillEntry } from '../types';
+import { YearlyData, SalaryEntry, OtherEntry } from '../types';
 import { X } from 'lucide-react';
 
 interface DataFormProps {
@@ -9,7 +9,6 @@ interface DataFormProps {
   initialData?: YearlyData | null;
   selectedYear: number;
   allData: YearlyData[]; // All data to check if salary entry exists for validation
-  defaultCategory?: YearlyData['category'];
 }
 
 export const DataForm: React.FC<DataFormProps> = ({
@@ -18,17 +17,13 @@ export const DataForm: React.FC<DataFormProps> = ({
   onSubmit,
   initialData,
   selectedYear,
-  allData,
-  defaultCategory = 'salary'
+  allData
 }) => {
   const [formData, setFormData] = useState({
     year: selectedYear,
     month: new Date().getMonth() + 1, // Current month (1-12)
-    category: defaultCategory as 'salary' | 'bonus' | 'overtime' | 'benefits' | 'bill',
+    category: 'salary' as 'salary' | 'bonus' | 'overtime' | 'benefits',
     amount: 0,
-    title: '',
-    billingFrequency: 'one-time' as 'monthly' | 'one-time',
-    repeatAllYear: false,
     
     // Salary-specific fields
     salaryNet: 0,
@@ -53,24 +48,6 @@ export const DataForm: React.FC<DataFormProps> = ({
           worked: initialData.worked,
           category: initialData.category,
           amount: 0,
-          title: '',
-          billingFrequency: 'one-time',
-          repeatAllYear: false,
-          notes: initialData.notes || ''
-        });
-      } else if (initialData.category === 'bill') {
-        setFormData({
-          year: initialData.year,
-          month: initialData.month,
-          salaryNet: 0,
-          swilePayment: 0,
-          transportPaid: false,
-          worked: false,
-          category: initialData.category,
-          amount: initialData.amount,
-          title: initialData.title || '',
-          billingFrequency: initialData.billingFrequency,
-          repeatAllYear: initialData.repeatAllYear ?? false,
           notes: initialData.notes || ''
         });
       } else {
@@ -83,9 +60,6 @@ export const DataForm: React.FC<DataFormProps> = ({
           worked: false,
           category: initialData.category,
           amount: initialData.amount,
-          title: '',
-          billingFrequency: 'one-time',
-          repeatAllYear: false,
           notes: initialData.notes || ''
         });
       }
@@ -97,20 +71,16 @@ export const DataForm: React.FC<DataFormProps> = ({
         swilePayment: 0,
         transportPaid: false,
         worked: true, // Default to worked
-        category: defaultCategory,
+        category: 'salary',
         amount: 0,
-        title: '',
-        billingFrequency: 'one-time',
-        repeatAllYear: false,
         notes: ''
       });
     }
     setErrors({});
-  }, [initialData, selectedYear, isOpen, defaultCategory]);
+  }, [initialData, selectedYear, isOpen]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    const normalizedBillTitle = formData.title.trim().toLowerCase();
 
     if (!formData.month || formData.month < 1 || formData.month > 12) {
       newErrors.month = 'Please select a valid month';
@@ -123,44 +93,6 @@ export const DataForm: React.FC<DataFormProps> = ({
 
       if (formData.swilePayment < 0) {
         newErrors.swilePayment = 'Swile payment cannot be negative';
-      }
-    } else if (formData.category === 'bill') {
-      if (!formData.title.trim()) {
-        newErrors.title = 'Bill name is required';
-      }
-
-      if (!formData.billingFrequency) {
-        newErrors.billingFrequency = 'Select a payment frequency';
-      }
-
-      if (formData.billingFrequency !== 'monthly' && formData.repeatAllYear) {
-        newErrors.repeatAllYear = 'Selected-year repeat is only available for monthly bills';
-      }
-
-      if (!formData.amount || formData.amount <= 0) {
-        newErrors.amount = 'Amount must be greater than 0';
-      }
-
-      if (normalizedBillTitle) {
-        const duplicateBill = allData.find((entry) => {
-          if (entry.category !== 'bill') {
-            return false;
-          }
-
-          if (initialData && entry.id === initialData.id) {
-            return false;
-          }
-
-          return (
-            entry.year === formData.year &&
-            entry.month === formData.month &&
-            entry.title?.trim().toLowerCase() === normalizedBillTitle
-          );
-        });
-
-        if (duplicateBill) {
-          newErrors.title = 'A bill with this name already exists for this month';
-        }
       }
     } else {
       if (!formData.amount || formData.amount <= 0) {
@@ -202,25 +134,12 @@ export const DataForm: React.FC<DataFormProps> = ({
           notes: formData.notes
         };
         onSubmit(submitData);
-      } else if (formData.category === 'bill') {
-        const submitData: Omit<BillEntry, 'id' | 'createdAt' | 'updatedAt'> = {
-          category: 'bill',
-          year: formData.year,
-          month: formData.month,
-          amount: formData.amount,
-          title: formData.title.trim(),
-          billingFrequency: formData.billingFrequency,
-          repeatAllYear: formData.billingFrequency === 'monthly' ? formData.repeatAllYear : false,
-          notes: formData.notes
-        };
-        onSubmit(submitData);
       } else {
         const submitData: Omit<OtherEntry, 'id' | 'createdAt' | 'updatedAt'> = {
           category: formData.category,
           year: formData.year,
           month: formData.month,
           amount: formData.amount,
-          title: formData.title.trim() || undefined,
           notes: formData.notes
         };
         onSubmit(submitData);
@@ -320,7 +239,6 @@ export const DataForm: React.FC<DataFormProps> = ({
                   <option value="bonus">Bonus</option>
                   <option value="overtime">Overtime</option>
                   <option value="benefits">Benefits</option>
-                  <option value="bill">Bill / Payment</option>
                 </select>
                 {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
               </div>
@@ -363,80 +281,6 @@ export const DataForm: React.FC<DataFormProps> = ({
                     {errors.swilePayment && <p className="mt-1 text-sm text-red-600">{errors.swilePayment}</p>}
                   </div>
                 </>
-                ) : formData.category === 'bill' ? (
-                  <>
-                    <div>
-                      <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                        Bill / Payment Name *
-                      </label>
-                      <input
-                        type="text"
-                        id="title"
-                        value={formData.title}
-                        onChange={(e) => handleInputChange('title', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                          errors.title ? 'border-red-300' : 'border-gray-300'
-                        }`}
-                        placeholder="Rent, internet, insurance..."
-                      />
-                      {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
-                    </div>
-
-                    <div>
-                      <label htmlFor="billingFrequency" className="block text-sm font-medium text-gray-700 mb-1">
-                        Payment Type
-                      </label>
-                      <select
-                        id="billingFrequency"
-                        value={formData.billingFrequency}
-                        onChange={(e) => handleInputChange('billingFrequency', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                          errors.billingFrequency ? 'border-red-300' : 'border-gray-300'
-                        }`}
-                      >
-                        <option value="monthly">Monthly</option>
-                        <option value="one-time">One-time</option>
-                      </select>
-                      {errors.billingFrequency && <p className="mt-1 text-sm text-red-600">{errors.billingFrequency}</p>}
-                    </div>
-
-                    <div className="flex items-start gap-3 rounded-md border border-blue-200 bg-blue-50 p-4">
-                      <input
-                        id="repeatAllYear"
-                        type="checkbox"
-                        checked={formData.repeatAllYear}
-                        onChange={(e) => handleInputChange('repeatAllYear', e.target.checked)}
-                        className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        disabled={formData.billingFrequency !== 'monthly'}
-                      />
-                      <div>
-                        <label htmlFor="repeatAllYear" className="block text-sm font-medium text-gray-900">
-                          Repeat this monthly bill for the selected year (example: 2026)
-                        </label>
-                        <p className="text-sm text-blue-800">
-                          When enabled, this bill appears in every month of the selected year, not only from its starting month.
-                        </p>
-                        {errors.repeatAllYear && <p className="mt-1 text-sm text-red-600">{errors.repeatAllYear}</p>}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
-                        Amount €
-                      </label>
-                      <input
-                        type="number"
-                        id="amount"
-                        step="0.01"
-                        value={formData.amount}
-                        onChange={(e) => handleInputChange('amount', parseFloat(e.target.value) || 0)}
-                        className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                          errors.amount ? 'border-red-300' : 'border-gray-300'
-                        }`}
-                      />
-                      {errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount}</p>}
-                    </div>
-                  </>
               ) : (
                 <div>
                   <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">

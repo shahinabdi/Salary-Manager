@@ -6,10 +6,8 @@ import { LoadingSpinner } from './components/LoadingSpinner';
 import { LoginPage } from './components/LoginPage';
 import { DataForm } from './components/DataForm';
 import { DataTable } from './components/DataTable';
-import { BillsTable } from './components/BillsTable';
 import { Filters } from './components/Filters';
 import { Statistics } from './components/Statistics';
-import { MonthlyOverview } from './components/MonthlyOverview';
 import { YearlyCharts } from './components/YearlyCharts';
 import { MonthStatus } from './components/MonthStatus';
 import { ImportExport } from './components/ImportExport';
@@ -42,16 +40,12 @@ function App() {
   } = useDataManagement({ enabled: !!authUser && !authLoading });
 
   const [showForm, setShowForm] = useState(false);
-  const [defaultFormCategory, setDefaultFormCategory] = useState<YearlyData['category']>('salary');
   const [editingItem, setEditingItem] = useState<YearlyData | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     isOpen: boolean;
     itemId: string | null;
   }>({ isOpen: false, itemId: null });
-
-  const nonBillData = data.filter((item) => item.category !== 'bill');
-  const billData = data.filter((item) => item.category === 'bill');
 
   useEffect(() => {
     const checkSession = async () => {
@@ -132,7 +126,7 @@ function App() {
       console.log(`   - Skipped duplicates: ${bulkResult.skippedCount}`);
       console.log(`   - Errors: ${bulkResult.errors.length}`);
       
-      bulkResult.imported.forEach((item: YearlyData) => {
+      bulkResult.imported.forEach(item => {
         console.log(`✅ Imported: ${item.year}-${item.month.toString().padStart(2, '0')} (${item.category})`);
       });
       
@@ -160,13 +154,6 @@ function App() {
   }, [allData, bulkCreateItems]);
 
   const handleAddNew = () => {
-    setDefaultFormCategory('salary');
-    setEditingItem(null);
-    setShowForm(true);
-  };
-
-  const handleAddExpense = () => {
-    setDefaultFormCategory('bill');
     setEditingItem(null);
     setShowForm(true);
   };
@@ -244,14 +231,6 @@ function App() {
                   <span>Add Entry</span>
                 </button>
 
-                <button
-                  onClick={handleAddExpense}
-                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors duration-200"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Expense</span>
-                </button>
-
                 {/* Print Button */}
                 <button
                   onClick={() => setShowPrintModal(true)}
@@ -295,9 +274,6 @@ function App() {
               {/* Statistics */}
               <Statistics statistics={statistics} />
 
-              {/* Monthly Money Overview */}
-              <MonthlyOverview data={allData} selectedYear={selectedYear} />
-
               {/* Interactive Yearly Graphs */}
               <YearlyCharts data={allData} selectedYear={selectedYear} />
 
@@ -312,24 +288,10 @@ function App() {
                 onSearchChange={setSearchTerm}
               />
 
-              {/* Salary / Income Table */}
+              {/* Data Table */}
               <div className="mb-6">
                 <DataTable
-                  data={nonBillData}
-                  onEdit={handleEdit}
-                  onDelete={handleDeleteClick}
-                  loading={loading}
-                />
-              </div>
-
-              {/* Bills Table */}
-              <div className="mb-6">
-                <div className="mb-3">
-                  <h2 className="text-lg font-semibold text-gray-900">Bills and One-time Payments</h2>
-                  <p className="text-sm text-gray-500">Monthly bills and single payments are kept separate for easier tracking.</p>
-                </div>
-                <BillsTable
-                  data={billData}
+                  data={data}
                   onEdit={handleEdit}
                   onDelete={handleDeleteClick}
                   loading={loading}
@@ -355,7 +317,6 @@ function App() {
           initialData={editingItem}
           selectedYear={selectedYear}
           allData={allData}
-          defaultCategory={defaultFormCategory}
         />
 
         <ConfirmDialog

@@ -67,10 +67,6 @@ export const useDataManagement = (options: UseDataManagementOptions = {}) => {
       filtered = filtered.filter(item => item.category === filters.category);
     }
 
-    if (filters.billingFrequency) {
-      filtered = filtered.filter(item => item.category === 'bill' && item.billingFrequency === filters.billingFrequency);
-    }
-
     if (filters.transportPaid !== undefined) {
       filtered = filtered.filter(item => 
         item.category === 'salary' && (item as SalaryEntry).transportPaid === filters.transportPaid
@@ -261,12 +257,8 @@ export const useDataManagement = (options: UseDataManagementOptions = {}) => {
   const statistics = useMemo(() => {
     const yearData = data.filter(item => item.year === selectedYear);
     const salaryEntries = yearData.filter(item => item.category === 'salary') as SalaryEntry[];
-    const billEntries = yearData.filter(item => item.category === 'bill');
-    const incomeEntries = yearData.filter(item => item.category !== 'salary' && item.category !== 'bill');
     const workedMonths = salaryEntries.filter(item => item.worked);
     const notWorkedMonths = salaryEntries.filter(item => !item.worked);
-    const totalIncome = salaryEntries.reduce((sum, item) => sum + item.salaryNet + item.swilePayment, 0) + incomeEntries.reduce((sum, item) => sum + item.amount, 0);
-    const totalBills = billEntries.reduce((sum, item) => sum + item.amount, 0);
     
     return {
       totalEntries: yearData.length,
@@ -274,9 +266,6 @@ export const useDataManagement = (options: UseDataManagementOptions = {}) => {
       notWorkedMonths: notWorkedMonths.length,
       totalSalary: salaryEntries.reduce((sum, item) => sum + item.salaryNet, 0),
       totalSwilePayments: salaryEntries.reduce((sum, item) => sum + item.swilePayment, 0),
-      totalBills,
-      totalIncome,
-      netOutcome: totalIncome - totalBills,
       averageSalary: workedMonths.length > 0 ? workedMonths.reduce((sum, item) => sum + item.salaryNet, 0) / workedMonths.length : 0,
       paidTransportCount: workedMonths.filter(item => item.transportPaid).length,
       unpaidTransportCount: workedMonths.filter(item => !item.transportPaid).length,

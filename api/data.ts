@@ -1,13 +1,8 @@
+import type { VercelResponse } from '@vercel/node';
 import { db } from './_lib/db.js';
-import { withAuth } from './_lib/withAuth.js';
+import { type AuthenticatedRequest, withAuth } from './_lib/withAuth.js';
 
-type EntryCategory = 'salary' | 'bonus' | 'overtime' | 'benefits' | 'bill';
-type BillingFrequency = 'monthly' | 'one-time';
-
-interface VercelResponse {
-  status(code: number): VercelResponse;
-  json(body: unknown): VercelResponse;
-}
+type EntryCategory = 'salary' | 'bonus' | 'overtime' | 'benefits';
 
 interface DataEntry {
   id: string;
@@ -15,9 +10,6 @@ interface DataEntry {
   month: number;
   category: EntryCategory;
   amount: number;
-  title?: string;
-  billingFrequency?: BillingFrequency;
-  repeatAllYear?: boolean;
   salaryNet?: number;
   swilePayment?: number;
   transportPaid?: boolean;
@@ -33,9 +25,6 @@ interface EntryRow {
   month: number;
   category: EntryCategory;
   amount: number;
-  title: string | null;
-  billing_frequency: BillingFrequency | null;
-  repeat_all_year: boolean | null;
   salary_net: number | null;
   swile_payment: number | null;
   transport_paid: boolean | null;
@@ -59,11 +48,8 @@ async function ensureSalaryEntriesTable() {
       entry_id TEXT NOT NULL,
       year INTEGER NOT NULL CHECK (year BETWEEN 1900 AND 2100),
       month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
-      category TEXT NOT NULL CHECK (category IN ('salary', 'bonus', 'overtime', 'benefits', 'bill')),
+      category TEXT NOT NULL CHECK (category IN ('salary', 'bonus', 'overtime', 'benefits')),
       amount NUMERIC(12, 2) NOT NULL,
-      title TEXT,
-      billing_frequency TEXT CHECK (billing_frequency IN ('monthly', 'one-time')),
-      repeat_all_year BOOLEAN NOT NULL DEFAULT FALSE,
       salary_net NUMERIC(12, 2),
       swile_payment NUMERIC(12, 2),
       transport_paid BOOLEAN,
@@ -78,53 +64,10 @@ async function ensureSalaryEntriesTable() {
       ON salary_entries (user_id, year, month);
   `);
 
-  await db.query(`
-    ALTER TABLE salary_entries
-      ADD COLUMN IF NOT EXISTS title TEXT;
-
-    ALTER TABLE salary_entries
-      ADD COLUMN IF NOT EXISTS billing_frequency TEXT CHECK (billing_frequency IN ('monthly', 'one-time'));
-  `);
-
   salaryEntriesTableEnsured = true;
 }
 
-let billsEntriesTableEnsured = false;
-
-async function ensureBillsEntriesTable() {
-  if (billsEntriesTableEnsured) {
-    return;
-  }
-
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS bills_entries (
-      id BIGSERIAL PRIMARY KEY,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      entry_id TEXT NOT NULL,
-      year INTEGER NOT NULL CHECK (year BETWEEN 1900 AND 2100),
-      month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
-      category TEXT NOT NULL DEFAULT 'bill' CHECK (category = 'bill'),
-      amount NUMERIC(12, 2) NOT NULL,
-      title TEXT NOT NULL,
-      billing_frequency TEXT NOT NULL CHECK (billing_frequency IN ('monthly', 'one-time')),
-      repeat_all_year BOOLEAN NOT NULL DEFAULT FALSE,
-      notes TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE (user_id, entry_id)
-    );
-
-    CREATE INDEX IF NOT EXISTS bills_entries_user_year_month_idx
-      ON bills_entries (user_id, year, month);
-
-    ALTER TABLE bills_entries
-      ADD COLUMN IF NOT EXISTS repeat_all_year BOOLEAN NOT NULL DEFAULT FALSE;
-  `);
-
-  billsEntriesTableEnsured = true;
-}
-
-function parseBody(req: any): unknown {
+function parseBody(req: AuthenticatedRequest): unknown {
   if (!req.body) {
     return {};
   }
@@ -145,35 +88,7 @@ function parseBody(req: any): unknown {
 }
 
 function isCategory(value: unknown): value is EntryCategory {
-  return ['salary', 'bonus', 'overtime', 'benefits', 'bill'].includes(String(value));
-}
-
-function normalizeBillTitle(title: unknown) {
-  return String(title ?? '').trim().toLowerCase();
-}
-
-async function hasDuplicateBillEntry(userId: number, year: number, month: number, title: string, excludeEntryId?: string) {
-  const query = excludeEntryId
-    ? `SELECT entry_id
-      FROM bills_entries
-      WHERE user_id = $1
-        AND year = $2
-        AND month = $3
-        AND LOWER(TRIM(title)) = $4
-        AND entry_id <> $5
-      LIMIT 1`
-    : `SELECT entry_id
-      FROM bills_entries
-      WHERE user_id = $1
-        AND year = $2
-        AND month = $3
-        AND LOWER(TRIM(title)) = $4
-      LIMIT 1`;
-
-  const params = excludeEntryId ? [userId, year, month, title, excludeEntryId] : [userId, year, month, title];
-  const duplicateResult = await db.query<{ entry_id: string }>(query, params);
-
-  return duplicateResult.rowCount > 0;
+  return ['salary', 'bonus', 'overtime', 'benefits'].includes(String(value));
 }
 
 function normalizeEntry(input: unknown): Omit<DataEntry, 'createdAt' | 'updatedAt'> {
@@ -182,6 +97,7 @@ function normalizeEntry(input: unknown): Omit<DataEntry, 'createdAt' | 'updatedA
   }
 
   const raw = input as Record<string, unknown>;
+
   const id = String(raw.id || '').trim();
   const year = Number(raw.year);
   const month = Number(raw.month);
@@ -233,34 +149,12 @@ function normalizeEntry(input: unknown): Omit<DataEntry, 'createdAt' | 'updatedA
     throw new Error('Amount must be greater than 0');
   }
 
-  if (category === 'bill') {
-    const title = String(raw.title ?? '').trim();
-    const billingFrequency = raw.billingFrequency === 'monthly' ? 'monthly' : 'one-time';
-
-    if (!title) {
-      throw new Error('Bill name is required');
-    }
-
-    return {
-      id,
-      year,
-      month,
-      category,
-      amount,
-      title,
-      billingFrequency,
-        repeatAllYear: Boolean(raw.repeatAllYear),
-      notes,
-    };
-  }
-
   return {
     id,
     year,
     month,
     category,
     amount,
-    title: typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : undefined,
     notes,
   };
 }
@@ -272,9 +166,6 @@ function mapRowToEntry(row: EntryRow): DataEntry {
     month: Number(row.month),
     category: row.category,
     amount: Number(row.amount),
-    title: row.title ?? undefined,
-    billingFrequency: row.billing_frequency ?? undefined,
-    repeatAllYear: row.repeat_all_year ?? false,
     salaryNet: row.salary_net === null ? undefined : Number(row.salary_net),
     swilePayment: row.swile_payment === null ? undefined : Number(row.swile_payment),
     transportPaid: row.transport_paid === null ? undefined : Boolean(row.transport_paid),
@@ -295,16 +186,13 @@ function isPgMissingTableError(error: unknown) {
 }
 
 async function getUserEntries(userId: number) {
-  const salaryResult = await db.query<EntryRow>(
+  const result = await db.query<EntryRow>(
     `SELECT
       entry_id,
       year,
       month,
       category,
       amount::float8 AS amount,
-      title,
-      billing_frequency,
-        NULL::boolean AS repeat_all_year,
       salary_net::float8 AS salary_net,
       swile_payment::float8 AS swile_payment,
       transport_paid,
@@ -318,43 +206,14 @@ async function getUserEntries(userId: number) {
     [userId]
   );
 
-  const billResult = await db.query<EntryRow>(
-    `SELECT
-      entry_id,
-      year,
-      month,
-      category,
-      amount::float8 AS amount,
-      title,
-      billing_frequency,
-      repeat_all_year,
-      NULL::float8 AS salary_net,
-      NULL::float8 AS swile_payment,
-      NULL::boolean AS transport_paid,
-      NULL::boolean AS worked,
-      notes,
-      created_at,
-      updated_at
-    FROM bills_entries
-    WHERE user_id = $1
-    ORDER BY year DESC, month DESC, created_at DESC`,
-    [userId]
-  );
-
-  return [...salaryResult.rows.map(mapRowToEntry), ...billResult.rows.map(mapRowToEntry)]
-    .sort((a, b) => {
-      if (a.year !== b.year) return b.year - a.year;
-      if (a.month !== b.month) return b.month - a.month;
-      return b.createdAt.localeCompare(a.createdAt);
-    });
+  return result.rows.map(mapRowToEntry);
 }
 
-async function dataHandler(req: any, res: VercelResponse) {
+async function dataHandler(req: AuthenticatedRequest, res: VercelResponse) {
   try {
     const userId = req.auth.userId;
 
     await ensureSalaryEntriesTable();
-    await ensureBillsEntriesTable();
 
     if (req.method === 'GET') {
       const entries = await getUserEntries(userId);
@@ -372,23 +231,41 @@ async function dataHandler(req: any, res: VercelResponse) {
         const skippedIds: string[] = [];
 
         for (const entry of normalizedEntries) {
-          try {
-            const result = await saveEntry(userId, entry);
+          const result = await db.query<{ entry_id: string }>(
+            `INSERT INTO salary_entries (
+              user_id,
+              entry_id,
+              year,
+              month,
+              category,
+              amount,
+              salary_net,
+              swile_payment,
+              transport_paid,
+              worked,
+              notes
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+            ON CONFLICT (user_id, entry_id) DO NOTHING
+            RETURNING entry_id`,
+            [
+              userId,
+              entry.id,
+              entry.year,
+              entry.month,
+              entry.category,
+              entry.amount,
+              entry.category === 'salary' ? entry.salaryNet ?? entry.amount : null,
+              entry.category === 'salary' ? entry.swilePayment ?? 0 : null,
+              entry.category === 'salary' ? entry.transportPaid ?? false : null,
+              entry.category === 'salary' ? entry.worked ?? true : null,
+              entry.notes ?? '',
+            ]
+          );
 
-            if (result.rowCount && result.rowCount > 0) {
-              importedIds.push(entry.id);
-            } else {
-              skippedIds.push(entry.id);
-            }
-          } catch (entryError) {
-            const message = entryError instanceof Error ? entryError.message : '';
-
-            if (message.includes('already exists for this month')) {
-              skippedIds.push(entry.id);
-              continue;
-            }
-
-            throw entryError;
+          if (result.rowCount && result.rowCount > 0) {
+            importedIds.push(entry.id);
+          } else {
+            skippedIds.push(entry.id);
           }
         }
 
@@ -405,7 +282,47 @@ async function dataHandler(req: any, res: VercelResponse) {
       }
 
       const entry = normalizeEntry(payload.entry);
-      const result = await saveEntry(userId, entry);
+      const result = await db.query<EntryRow>(
+        `INSERT INTO salary_entries (
+          user_id,
+          entry_id,
+          year,
+          month,
+          category,
+          amount,
+          salary_net,
+          swile_payment,
+          transport_paid,
+          worked,
+          notes
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+        RETURNING
+          entry_id,
+          year,
+          month,
+          category,
+          amount::float8 AS amount,
+          salary_net::float8 AS salary_net,
+          swile_payment::float8 AS swile_payment,
+          transport_paid,
+          worked,
+          notes,
+          created_at,
+          updated_at`,
+        [
+          userId,
+          entry.id,
+          entry.year,
+          entry.month,
+          entry.category,
+          entry.amount,
+          entry.category === 'salary' ? entry.salaryNet ?? entry.amount : null,
+          entry.category === 'salary' ? entry.swilePayment ?? 0 : null,
+          entry.category === 'salary' ? entry.transportPaid ?? false : null,
+          entry.category === 'salary' ? entry.worked ?? true : null,
+          entry.notes ?? '',
+        ]
+      );
 
       return res.status(201).json({ entry: mapRowToEntry(result.rows[0]) });
     }
@@ -423,8 +340,6 @@ async function dataHandler(req: any, res: VercelResponse) {
           month,
           category,
           amount::float8 AS amount,
-          title,
-          billing_frequency,
           salary_net::float8 AS salary_net,
           swile_payment::float8 AS swile_payment,
           transport_paid,
@@ -438,36 +353,7 @@ async function dataHandler(req: any, res: VercelResponse) {
         [userId, payload.id]
       );
 
-      let entryTable: 'salary_entries' | 'bills_entries' | null = existingResult.rows[0] ? 'salary_entries' : null;
-      let existing = existingResult.rows[0];
-
-      if (!existing) {
-        const billResult = await db.query<EntryRow>(
-          `SELECT
-            entry_id,
-            year,
-            month,
-            category,
-            amount::float8 AS amount,
-            title,
-            billing_frequency,
-            NULL::float8 AS salary_net,
-            NULL::float8 AS swile_payment,
-            NULL::boolean AS transport_paid,
-            NULL::boolean AS worked,
-            notes,
-            created_at,
-            updated_at
-          FROM bills_entries
-          WHERE user_id = $1 AND entry_id = $2
-          LIMIT 1`,
-          [userId, payload.id]
-        );
-
-        existing = billResult.rows[0];
-        entryTable = existing ? 'bills_entries' : null;
-      }
-
+      const existing = existingResult.rows[0];
       if (!existing) {
         return res.status(404).json({ error: 'Entry not found' });
       }
@@ -479,14 +365,48 @@ async function dataHandler(req: any, res: VercelResponse) {
       };
 
       const entry = normalizeEntry(merged);
-      if (entry.category === 'bill') {
-        const duplicateBill = await hasDuplicateBillEntry(userId, entry.year, entry.month, normalizeBillTitle(entry.title), payload.id);
 
-        if (duplicateBill) {
-          return res.status(409).json({ error: 'A bill with this name already exists for this month' });
-        }
-      }
-      const result = await updateEntryRow(userId, entryTable!, payload.id, entry);
+      const result = await db.query<EntryRow>(
+        `UPDATE salary_entries
+        SET
+          year = $3,
+          month = $4,
+          category = $5,
+          amount = $6,
+          salary_net = $7,
+          swile_payment = $8,
+          transport_paid = $9,
+          worked = $10,
+          notes = $11,
+          updated_at = NOW()
+        WHERE user_id = $1 AND entry_id = $2
+        RETURNING
+          entry_id,
+          year,
+          month,
+          category,
+          amount::float8 AS amount,
+          salary_net::float8 AS salary_net,
+          swile_payment::float8 AS swile_payment,
+          transport_paid,
+          worked,
+          notes,
+          created_at,
+          updated_at`,
+        [
+          userId,
+          payload.id,
+          entry.year,
+          entry.month,
+          entry.category,
+          entry.amount,
+          entry.category === 'salary' ? entry.salaryNet ?? entry.amount : null,
+          entry.category === 'salary' ? entry.swilePayment ?? 0 : null,
+          entry.category === 'salary' ? entry.transportPaid ?? false : null,
+          entry.category === 'salary' ? entry.worked ?? true : null,
+          entry.notes ?? '',
+        ]
+      );
 
       return res.status(200).json({ entry: mapRowToEntry(result.rows[0]) });
     }
@@ -496,7 +416,6 @@ async function dataHandler(req: any, res: VercelResponse) {
 
       if (payload.all) {
         await db.query('DELETE FROM salary_entries WHERE user_id = $1', [userId]);
-        await db.query('DELETE FROM bills_entries WHERE user_id = $1', [userId]);
         return res.status(200).json({ success: true, deletedAll: true });
       }
 
@@ -504,26 +423,14 @@ async function dataHandler(req: any, res: VercelResponse) {
         return res.status(400).json({ error: 'id is required' });
       }
 
-      const deletedSalary = await db.query('DELETE FROM salary_entries WHERE user_id = $1 AND entry_id = $2', [userId, payload.id]);
-      if (deletedSalary.rowCount && deletedSalary.rowCount > 0) {
-        return res.status(200).json({ success: true });
-      }
-
-      await db.query('DELETE FROM bills_entries WHERE user_id = $1 AND entry_id = $2', [userId, payload.id]);
+      await db.query('DELETE FROM salary_entries WHERE user_id = $1 AND entry_id = $2', [userId, payload.id]);
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    const pgCode = typeof error === 'object' && error !== null && 'code' in error
-      ? String((error as { code?: unknown }).code)
-      : undefined;
-    const pgDetail = typeof error === 'object' && error !== null && 'detail' in error
-      ? String((error as { detail?: unknown }).detail)
-      : undefined;
-
-    console.error('Data API error', { message, pgCode, pgDetail });
+    console.error('Data API error', { message });
 
     if (isPgMissingTableError(error)) {
       return res.status(500).json({
@@ -535,202 +442,8 @@ async function dataHandler(req: any, res: VercelResponse) {
       return res.status(400).json({ error: message });
     }
 
-    return res.status(500).json({
-      error: 'Internal server error',
-      debug: {
-        message,
-        code: pgCode,
-        detail: pgDetail,
-      },
-    });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-async function saveEntry(userId: number, entry: Omit<DataEntry, 'createdAt' | 'updatedAt'>) {
-  if (entry.category === 'bill') {
-    const duplicateBill = await hasDuplicateBillEntry(userId, entry.year, entry.month, normalizeBillTitle(entry.title));
-    if (duplicateBill) {
-      throw new Error('A bill with this name already exists for this month');
-    }
-
-    return db.query<EntryRow>(
-      `INSERT INTO bills_entries (
-        user_id,
-        entry_id,
-        year,
-        month,
-        category,
-        amount,
-        title,
-        billing_frequency,
-        repeat_all_year,
-        notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-      ON CONFLICT (user_id, entry_id) DO NOTHING
-      RETURNING
-        entry_id,
-        year,
-        month,
-        category,
-        amount::float8 AS amount,
-        title,
-        billing_frequency,
-        repeat_all_year,
-        NULL::float8 AS salary_net,
-        NULL::float8 AS swile_payment,
-        NULL::boolean AS transport_paid,
-        NULL::boolean AS worked,
-        notes,
-        created_at,
-        updated_at`,
-      [
-        userId,
-        entry.id,
-        entry.year,
-        entry.month,
-        entry.category,
-        entry.amount,
-        entry.title ?? '',
-        entry.billingFrequency ?? 'one-time',
-        Boolean(entry.repeatAllYear),
-        entry.notes ?? '',
-      ]
-    );
-  }
-
-  return db.query<EntryRow>(
-    `INSERT INTO salary_entries (
-      user_id,
-      entry_id,
-      year,
-      month,
-      category,
-      amount,
-      title,
-      billing_frequency,
-      salary_net,
-      swile_payment,
-      transport_paid,
-      worked,
-      notes
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-    ON CONFLICT (user_id, entry_id) DO NOTHING
-    RETURNING
-      entry_id,
-      year,
-      month,
-      category,
-      amount::float8 AS amount,
-      title,
-      billing_frequency,
-    NULL::boolean AS repeat_all_year,
-      salary_net::float8 AS salary_net,
-      swile_payment::float8 AS swile_payment,
-      transport_paid,
-      worked,
-      notes,
-      created_at,
-      updated_at`,
-    [
-      userId,
-      entry.id,
-      entry.year,
-      entry.month,
-      entry.category,
-      entry.amount,
-      null,
-      null,
-      entry.category === 'salary' ? entry.salaryNet ?? entry.amount : null,
-      entry.category === 'salary' ? entry.swilePayment ?? 0 : null,
-      entry.category === 'salary' ? entry.transportPaid ?? false : null,
-      entry.category === 'salary' ? entry.worked ?? true : null,
-      entry.notes ?? '',
-    ]
-  );
-}
-
-async function updateEntryRow(userId: number, table: 'salary_entries' | 'bills_entries', entryId: string, entry: Omit<DataEntry, 'createdAt' | 'updatedAt'>) {
-  if (table === 'bills_entries') {
-    return db.query<EntryRow>(
-      `UPDATE bills_entries
-      SET
-        year = $3,
-        month = $4,
-        amount = $5,
-        title = $6,
-        billing_frequency = $7,
-        repeat_all_year = $8,
-        notes = $9,
-        updated_at = NOW()
-      WHERE user_id = $1 AND entry_id = $2
-      RETURNING
-        entry_id,
-        year,
-        month,
-        category,
-        amount::float8 AS amount,
-        title,
-        billing_frequency,
-        repeat_all_year,
-        NULL::float8 AS salary_net,
-        NULL::float8 AS swile_payment,
-        NULL::boolean AS transport_paid,
-        NULL::boolean AS worked,
-        notes,
-        created_at,
-        updated_at`,
-      [userId, entryId, entry.year, entry.month, entry.amount, entry.title ?? '', entry.billingFrequency ?? 'one-time', Boolean(entry.repeatAllYear), entry.notes ?? '']
-    );
-  }
-
-  return db.query<EntryRow>(
-    `UPDATE salary_entries
-    SET
-      year = $3,
-      month = $4,
-      category = $5,
-      amount = $6,
-      title = $7,
-      billing_frequency = $8,
-      salary_net = $9,
-      swile_payment = $10,
-      transport_paid = $11,
-      worked = $12,
-      notes = $13,
-      updated_at = NOW()
-    WHERE user_id = $1 AND entry_id = $2
-    RETURNING
-      entry_id,
-      year,
-      month,
-      category,
-      amount::float8 AS amount,
-      title,
-      billing_frequency,
-      NULL::boolean AS repeat_all_year,
-      salary_net::float8 AS salary_net,
-      swile_payment::float8 AS swile_payment,
-      transport_paid,
-      worked,
-      notes,
-      created_at,
-      updated_at`,
-    [
-      userId,
-      entryId,
-      entry.year,
-      entry.month,
-      entry.category,
-      entry.amount,
-      null,
-      null,
-      entry.salaryNet ?? entry.amount,
-      entry.swilePayment ?? 0,
-      entry.transportPaid ?? false,
-      entry.worked ?? true,
-      entry.notes ?? '',
-    ]
-  );
-}
-
-export default withAuth(dataHandler as any);
+export default withAuth(dataHandler);

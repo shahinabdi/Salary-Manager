@@ -4,14 +4,10 @@ export interface BaseEntry {
   year: number;
   month: number;
   amount: number;
-  title?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
-
-export type EntryCategory = 'salary' | 'bonus' | 'overtime' | 'benefits' | 'bill';
-export type BillingFrequency = 'monthly' | 'one-time';
 
 export interface SalaryEntry extends BaseEntry {
   category: 'salary';
@@ -25,13 +21,7 @@ export interface OtherEntry extends BaseEntry {
   category: 'bonus' | 'overtime' | 'benefits';
 }
 
-export interface BillEntry extends BaseEntry {
-  category: 'bill';
-  billingFrequency: BillingFrequency;
-  repeatAllYear: boolean;
-}
-
-export type YearlyData = SalaryEntry | OtherEntry | BillEntry;
+export type YearlyData = SalaryEntry | OtherEntry;
 
 export interface MonthStatus {
   year: number;
@@ -45,7 +35,6 @@ export interface MonthStatus {
 
 export interface FilterOptions {
   category?: string;
-  billingFrequency?: BillingFrequency;
   transportPaid?: boolean;
   monthRange?: {
     startYear: number;

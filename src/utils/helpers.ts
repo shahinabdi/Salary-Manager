@@ -1,4 +1,4 @@
-import { YearlyData, ValidationError, ExportData, MonthStatus, SalaryEntry, BillEntry } from '../types';
+import { YearlyData, ValidationError, ExportData, MonthStatus, SalaryEntry } from '../types';
 
 export const generateId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -31,23 +31,9 @@ export const validateYearlyData = (data: Partial<YearlyData>): ValidationError[]
     if (data.amount !== undefined && data.amount <= 0) {
       errors.push({ field: 'amount', message: 'Amount must be greater than 0' });
     }
-  } else if (data.category === 'bill') {
-    const billData = data as Partial<BillEntry>;
-
-    if (!billData.title || !billData.title.trim()) {
-      errors.push({ field: 'title', message: 'Bill name is required' });
-    }
-
-    if (!billData.billingFrequency || !['monthly', 'one-time'].includes(billData.billingFrequency)) {
-      errors.push({ field: 'billingFrequency', message: 'Billing frequency must be monthly or one-time' });
-    }
-
-    if (data.amount !== undefined && data.amount <= 0) {
-      errors.push({ field: 'amount', message: 'Amount must be greater than 0' });
-    }
   }
 
-  if (data.category && !['salary', 'bonus', 'overtime', 'benefits', 'bill'].includes(data.category)) {
+  if (data.category && !['salary', 'bonus', 'overtime', 'benefits'].includes(data.category)) {
     errors.push({ field: 'category', message: 'Invalid category' });
   }
 
@@ -199,30 +185,8 @@ export const parseImportedData = (jsonString: string): YearlyData[] => {
           };
           
           processedData.push(otherEntry);
-        } else if (item.category === 'bill') {
-          const amount = Number(item.amount || 0);
-          if (amount <= 0) {
-            processingErrors.push(`Entry ${index + 1}: Amount must be greater than 0 for bill entries`);
-            return;
-          }
-
-          const billEntry = {
-            id: item.id || generateId(),
-            year,
-            month,
-            amount,
-            category: 'bill' as const,
-            title: item.title || '',
-            billingFrequency: item.billingFrequency === 'monthly' ? 'monthly' : 'one-time',
-            repeatAllYear: Boolean(item.repeatAllYear),
-            notes: item.notes || '',
-            createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-            updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
-          };
-
-          processedData.push(billEntry as BillEntry);
         } else {
-          processingErrors.push(`Entry ${index + 1}: Invalid category '${item.category}'. Must be: salary, bonus, overtime, benefits, or bill`);
+          processingErrors.push(`Entry ${index + 1}: Invalid category '${item.category}'. Must be: salary, bonus, overtime, or benefits`);
         }
       } catch (itemError) {
         processingErrors.push(`Entry ${index + 1}: Processing error - ${itemError instanceof Error ? itemError.message : 'Unknown error'}`);
@@ -337,76 +301,4 @@ export const getYearMonthsStatus = (data: YearlyData[], year: number): MonthStat
 export const isMonthComplete = (data: YearlyData[], targetMonth: number, targetYear: number): boolean => {
   const monthStatus = getMonthStatus(data, targetYear, targetMonth);
   return monthStatus.isComplete;
-};
-
-export interface MonthlyFinancialSummary {
-  year: number;
-  month: number;
-  income: number;
-  expenses: number;
-  net: number;
-  salaryTotal: number;
-  variableIncomeTotal: number;
-  monthlyBillsTotal: number;
-  oneTimePaymentsTotal: number;
-  billCount: number;
-  oneTimeCount: number;
-  monthlyCount: number;
-  activeMonthlyBills: BillEntry[];
-  oneTimeBills: BillEntry[];
-}
-
-export const getMonthlyFinancialSummary = (data: YearlyData[], year: number, month: number): MonthlyFinancialSummary => {
-  const monthEntries = data.filter(item => item.year === year && item.month === month);
-  const salaryEntries = monthEntries.filter(item => item.category === 'salary') as SalaryEntry[];
-  const billEntries = monthEntries.filter(item => item.category === 'bill') as BillEntry[];
-  const otherEntries = monthEntries.filter(item => item.category !== 'salary' && item.category !== 'bill');
-
-  const allBillEntries = data.filter(item => item.category === 'bill' && item.year === year) as BillEntry[];
-  const activeMonthlyBills = getActiveMonthlyBills(allBillEntries, month);
-  const oneTimeBills = billEntries.filter(item => item.billingFrequency === 'one-time');
-
-  const salaryTotal = salaryEntries.reduce((sum, item) => sum + item.salaryNet + item.swilePayment, 0);
-  const variableIncomeTotal = otherEntries.reduce((sum, item) => sum + item.amount, 0);
-  const monthlyBillsTotal = activeMonthlyBills.reduce((sum, item) => sum + item.amount, 0);
-  const oneTimePaymentsTotal = oneTimeBills.reduce((sum, item) => sum + item.amount, 0);
-  const income = salaryTotal + variableIncomeTotal;
-  const expenses = monthlyBillsTotal + oneTimePaymentsTotal;
-
-  return {
-    year,
-    month,
-    income,
-    expenses,
-    net: income - expenses,
-    salaryTotal,
-    variableIncomeTotal,
-    monthlyBillsTotal,
-    oneTimePaymentsTotal,
-    billCount: billEntries.length,
-    oneTimeCount: oneTimeBills.length,
-    monthlyCount: activeMonthlyBills.length,
-    activeMonthlyBills,
-    oneTimeBills,
-  };
-};
-
-export const getActiveMonthlyBills = (billEntries: BillEntry[], targetMonth: number): BillEntry[] => {
-  const monthlyEntries = billEntries
-    .filter(item => item.billingFrequency === 'monthly')
-    .sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      if (a.month !== b.month) return a.month - b.month;
-      return a.createdAt.getTime() - b.createdAt.getTime();
-    });
-
-  const latestByTitle = new Map<string, BillEntry>();
-
-  monthlyEntries.forEach((entry) => {
-    if (entry.repeatAllYear || entry.month <= targetMonth) {
-      latestByTitle.set(entry.title.trim().toLowerCase(), entry);
-    }
-  });
-
-  return Array.from(latestByTitle.values()).sort((a, b) => a.title.localeCompare(b.title));
 };

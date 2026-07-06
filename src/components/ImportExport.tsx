@@ -197,9 +197,8 @@ export const ImportExport: React.FC<ImportExportProps> = ({
                 <p className="font-medium mb-1">Import Guidelines:</p>
                 <ul className="space-y-1">
                   <li>• JSON file should contain an array of entries or export format</li>
-                  <li>• Each entry needs: year, month, category (salary/bonus/overtime/benefits/bill)</li>
+                  <li>• Each entry needs: year, month, category (salary/bonus/overtime/benefits)</li>
                   <li>• Salary entries need: salaryNet, swilePayment, transportPaid, worked</li>
-                  <li>• Bill entries also need: title, billingFrequency (monthly or one-time), amount</li>
                   <li>• Other entries need: amount</li>
                   <li>• Import will merge with existing data (duplicates by ID are skipped)</li>
                 </ul>
