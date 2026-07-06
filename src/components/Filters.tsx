@@ -87,6 +87,22 @@ export const Filters: React.FC<FiltersProps> = ({
                 <option value="bonus">Bonus</option>
                 <option value="overtime">Overtime</option>
                 <option value="benefits">Benefits</option>
+                <option value="bill">Bill</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Payment Type
+              </label>
+              <select
+                value={filters.billingFrequency || ''}
+                onChange={(e) => handleFilterChange('billingFrequency', e.target.value || undefined)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Types</option>
+                <option value="monthly">Monthly</option>
+                <option value="one-time">One-time</option>
               </select>
             </div>
 

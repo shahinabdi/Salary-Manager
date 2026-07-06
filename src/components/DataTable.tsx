@@ -41,7 +41,8 @@ export const DataTable: React.FC<DataTableProps> = ({
       salary: 'bg-blue-100 text-blue-800',
       bonus: 'bg-green-100 text-green-800',
       overtime: 'bg-yellow-100 text-yellow-800',
-      benefits: 'bg-purple-100 text-purple-800'
+      benefits: 'bg-purple-100 text-purple-800',
+      bill: 'bg-red-100 text-red-800'
     };
     
     return (
@@ -78,7 +79,7 @@ export const DataTable: React.FC<DataTableProps> = ({
             </svg>
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No data entries</h3>
-          <p className="text-gray-500">Get started by adding your first salary entry.</p>
+          <p className="text-gray-500">Get started by adding your first salary or bill entry.</p>
         </div>
       </div>
     );
@@ -103,7 +104,7 @@ export const DataTable: React.FC<DataTableProps> = ({
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Salary (Net)</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Swile Payment</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">                  Transport</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Transport</th>
               <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Transport Paid</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
