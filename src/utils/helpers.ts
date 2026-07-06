@@ -1,4 +1,4 @@
-import { YearlyData, ValidationError, ExportData, MonthStatus, SalaryEntry } from '../types';
+import { YearlyData, ValidationError, ExportData, MonthStatus, SalaryEntry, BillEntry } from '../types';
 
 export const generateId = (): string => {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -13,6 +13,17 @@ export const validateYearlyData = (data: Partial<YearlyData>): ValidationError[]
 
   if (!data.month || data.month < 1 || data.month > 12) {
     errors.push({ field: 'month', message: 'Month must be between 1 and 12' });
+  }
+
+  if (data.category === 'bill') {
+    const billData = data as Partial<BillEntry>;
+    if (!billData.title || billData.title.trim() === '') {
+      errors.push({ field: 'title', message: 'Bill title is required' });
+    }
+    if (billData.amount !== undefined && billData.amount <= 0) {
+      errors.push({ field: 'amount', message: 'Amount must be greater than 0' });
+    }
+    return errors;
   }
 
   // Type guard to check if this is a salary entry
@@ -33,7 +44,7 @@ export const validateYearlyData = (data: Partial<YearlyData>): ValidationError[]
     }
   }
 
-  if (data.category && !['salary', 'bonus', 'overtime', 'benefits'].includes(data.category)) {
+  if (data.category && !['salary', 'bonus', 'overtime', 'benefits', 'bill'].includes(data.category)) {
     errors.push({ field: 'category', message: 'Invalid category' });
   }
 
@@ -185,8 +196,32 @@ export const parseImportedData = (jsonString: string): YearlyData[] => {
           };
           
           processedData.push(otherEntry);
+        } else if (item.category === 'bill') {
+          const amount = Number(item.amount || 0);
+          if (amount <= 0) {
+            processingErrors.push(`Entry ${index + 1}: Amount must be greater than 0 for bill entries`);
+            return;
+          }
+          if (!item.title || String(item.title).trim() === '') {
+            processingErrors.push(`Entry ${index + 1}: Title is required for bill entries`);
+            return;
+          }
+          const billEntry: BillEntry = {
+            id: item.id || generateId(),
+            year,
+            month,
+            amount,
+            category: 'bill',
+            title: String(item.title).trim(),
+            billingFrequency: item.billingFrequency === 'one-time' ? 'one-time' : 'monthly',
+            repeatAllYear: Boolean(item.repeatAllYear),
+            notes: item.notes || '',
+            createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+            updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+          };
+          processedData.push(billEntry);
         } else {
-          processingErrors.push(`Entry ${index + 1}: Invalid category '${item.category}'. Must be: salary, bonus, overtime, or benefits`);
+          processingErrors.push(`Entry ${index + 1}: Invalid category '${item.category}'. Must be: salary, bonus, overtime, benefits, or bill`);
         }
       } catch (itemError) {
         processingErrors.push(`Entry ${index + 1}: Processing error - ${itemError instanceof Error ? itemError.message : 'Unknown error'}`);
@@ -301,4 +336,79 @@ export const getYearMonthsStatus = (data: YearlyData[], year: number): MonthStat
 export const isMonthComplete = (data: YearlyData[], targetMonth: number, targetYear: number): boolean => {
   const monthStatus = getMonthStatus(data, targetYear, targetMonth);
   return monthStatus.isComplete;
+};
+
+// ─── Bill recurrence helpers ──────────────────────────────────────────────────
+
+/**
+ * For a given month/year, return the effective bills using recurrence:
+ * - Monthly bills: carry forward from the most recent entry with that title
+ *   on or before the target month/year.
+ * - One-time bills: only appear in their exact month/year.
+ */
+export const getEffectiveBillsForMonth = (
+  allBills: BillEntry[],
+  year: number,
+  month: number
+): BillEntry[] => {
+  const result: BillEntry[] = [];
+
+  // One-time bills: exact match only
+  const oneTimeBills = allBills.filter(
+    (b) => b.billingFrequency === 'one-time' && b.year === year && b.month === month
+  );
+  result.push(...oneTimeBills);
+
+  // Monthly bills: group by title, find most recent entry on or before this month
+  const monthlyBills = allBills.filter((b) => b.billingFrequency === 'monthly');
+  const titles = Array.from(new Set(monthlyBills.map((b) => b.title)));
+
+  for (const title of titles) {
+    const candidates = monthlyBills
+      .filter((b) => b.title === title)
+      .filter((b) => b.year < year || (b.year === year && b.month <= month));
+
+    if (candidates.length === 0) continue;
+
+    // Pick the most recent (highest year, then highest month)
+    candidates.sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year;
+      return b.month - a.month;
+    });
+
+    result.push(candidates[0]);
+  }
+
+  return result;
+};
+
+/**
+ * Compute the total bills amount for a given month/year using recurrence.
+ */
+export const getMonthlyBillsTotal = (
+  allBills: BillEntry[],
+  year: number,
+  month: number
+): number => {
+  return getEffectiveBillsForMonth(allBills, year, month).reduce(
+    (sum, b) => sum + b.amount,
+    0
+  );
+};
+
+/**
+ * Generate entry IDs for a "repeat all year" bill expansion.
+ * Returns an array of { month, id } for each month 1–12 of the given year.
+ */
+export const expandBillToYear = (
+  baseBill: Omit<BillEntry, 'id' | 'month' | 'createdAt' | 'updatedAt'>,
+  year: number
+): Array<Omit<BillEntry, 'createdAt' | 'updatedAt'>> => {
+  return Array.from({ length: 12 }, (_, i) => ({
+    ...baseBill,
+    id: generateId(),
+    year,
+    month: i + 1,
+    repeatAllYear: true,
+  }));
 };

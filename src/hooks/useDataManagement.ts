@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { YearlyData, FilterOptions, SortOptions, SalaryEntry, OtherEntry } from '../types';
+import { YearlyData, FilterOptions, SortOptions, SalaryEntry, OtherEntry, BillEntry } from '../types';
 import { validateYearlyData, generateId } from '../utils/helpers';
 import {
   fetchEntries,
@@ -93,6 +93,7 @@ export const useDataManagement = (options: UseDataManagementOptions = {}) => {
       filtered = filtered.filter(item => 
         item.notes?.toLowerCase().includes(term) ||
         item.category.toLowerCase().includes(term) ||
+        (item.category === 'bill' && (item as BillEntry).title.toLowerCase().includes(term)) ||
         item.year.toString().includes(term) ||
         item.month.toString().includes(term)
       );
@@ -131,6 +132,13 @@ export const useDataManagement = (options: UseDataManagementOptions = {}) => {
         createdAt: new Date(),
         updatedAt: new Date(),
       } as SalaryEntry;
+    } else if (itemData.category === 'bill') {
+      newItem = {
+        ...(itemData as Omit<BillEntry, 'id' | 'createdAt' | 'updatedAt'>),
+        id: generateId(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as BillEntry;
     } else {
       newItem = {
         ...(itemData as Omit<OtherEntry, 'id' | 'createdAt' | 'updatedAt'>),
@@ -155,17 +163,11 @@ export const useDataManagement = (options: UseDataManagementOptions = {}) => {
     let updatedItem: YearlyData;
     
     if (existingItem.category === 'salary' || updates.category === 'salary') {
-      updatedItem = {
-        ...existingItem,
-        ...updates,
-        updatedAt: new Date(),
-      } as SalaryEntry;
+      updatedItem = { ...existingItem, ...updates, updatedAt: new Date() } as SalaryEntry;
+    } else if (existingItem.category === 'bill' || updates.category === 'bill') {
+      updatedItem = { ...existingItem, ...updates, updatedAt: new Date() } as BillEntry;
     } else {
-      updatedItem = {
-        ...existingItem,
-        ...updates,
-        updatedAt: new Date(),
-      } as OtherEntry;
+      updatedItem = { ...existingItem, ...updates, updatedAt: new Date() } as OtherEntry;
     }
 
     const errors = validateYearlyData(updatedItem);
@@ -179,14 +181,18 @@ export const useDataManagement = (options: UseDataManagementOptions = {}) => {
   }, [data]);
 
   const deleteItem = useCallback(async (id: string) => {
-    await deleteEntry(id);
+    const item = data.find(d => d.id === id);
+    await deleteEntry(id, item?.category);
     setData((prev) => prev.filter(item => item.id !== id));
-  }, []);
+  }, [data]);
 
   const deleteMultiple = useCallback(async (ids: string[]) => {
-    await Promise.all(ids.map((id) => deleteEntry(id)));
+    await Promise.all(ids.map((id) => {
+      const item = data.find(d => d.id === id);
+      return deleteEntry(id, item?.category);
+    }));
     setData((prev) => prev.filter(item => !ids.includes(item.id)));
-  }, []);
+  }, [data]);
 
   const clearAllData = useCallback(async () => {
     await clearEntries();
@@ -211,10 +217,17 @@ export const useDataManagement = (options: UseDataManagementOptions = {}) => {
         if (itemData.category === 'salary') {
           newItem = {
             ...(itemData as Omit<SalaryEntry, 'id' | 'createdAt' | 'updatedAt'>),
-            id: (itemData as { id?: string }).id || generateId(), // Use existing ID if available
+            id: (itemData as { id?: string }).id || generateId(),
             createdAt: (itemData as any).createdAt ? new Date((itemData as any).createdAt) : new Date(),
             updatedAt: (itemData as any).updatedAt ? new Date((itemData as any).updatedAt) : new Date(),
           } as SalaryEntry;
+        } else if (itemData.category === 'bill') {
+          newItem = {
+            ...(itemData as Omit<BillEntry, 'id' | 'createdAt' | 'updatedAt'>),
+            id: (itemData as { id?: string }).id || generateId(),
+            createdAt: (itemData as any).createdAt ? new Date((itemData as any).createdAt) : new Date(),
+            updatedAt: (itemData as any).updatedAt ? new Date((itemData as any).updatedAt) : new Date(),
+          } as BillEntry;
         } else {
           newItem = {
             ...(itemData as Omit<OtherEntry, 'id' | 'createdAt' | 'updatedAt'>),
@@ -257,6 +270,7 @@ export const useDataManagement = (options: UseDataManagementOptions = {}) => {
   const statistics = useMemo(() => {
     const yearData = data.filter(item => item.year === selectedYear);
     const salaryEntries = yearData.filter(item => item.category === 'salary') as SalaryEntry[];
+    const billEntries = yearData.filter(item => item.category === 'bill') as BillEntry[];
     const workedMonths = salaryEntries.filter(item => item.worked);
     const notWorkedMonths = salaryEntries.filter(item => !item.worked);
     
@@ -269,6 +283,8 @@ export const useDataManagement = (options: UseDataManagementOptions = {}) => {
       averageSalary: workedMonths.length > 0 ? workedMonths.reduce((sum, item) => sum + item.salaryNet, 0) / workedMonths.length : 0,
       paidTransportCount: workedMonths.filter(item => item.transportPaid).length,
       unpaidTransportCount: workedMonths.filter(item => !item.transportPaid).length,
+      totalBills: billEntries.reduce((sum, item) => sum + item.amount, 0),
+      billCount: billEntries.length,
     };
   }, [data, selectedYear]);
 

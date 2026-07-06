@@ -1,19 +1,21 @@
 import { useState, useCallback, useEffect } from 'react';
-import { AuthUser, YearlyData } from './types';
+import { AuthUser, YearlyData, BillEntry } from './types';
 import { useDataManagement } from './hooks/useDataManagement';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { LoginPage } from './components/LoginPage';
 import { DataForm } from './components/DataForm';
 import { DataTable } from './components/DataTable';
+import { BillsTable } from './components/BillsTable';
 import { Filters } from './components/Filters';
 import { Statistics } from './components/Statistics';
 import { YearlyCharts } from './components/YearlyCharts';
 import { MonthStatus } from './components/MonthStatus';
+import { MonthlyOverview } from './components/MonthlyOverview';
 import { ImportExport } from './components/ImportExport';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { PrintModal } from './components/PrintModal';
-import { Plus, Calendar, Database, AlertCircle, Printer, LogOut } from 'lucide-react';
+import { Plus, Calendar, Database, AlertCircle, Printer, LogOut, Receipt } from 'lucide-react';
 import { fetchCurrentUser, logoutRequest } from './lib/authApi';
 
 function App() {
@@ -40,6 +42,7 @@ function App() {
   } = useDataManagement({ enabled: !!authUser && !authLoading });
 
   const [showForm, setShowForm] = useState(false);
+  const [showBillForm, setShowBillForm] = useState(false);
   const [editingItem, setEditingItem] = useState<YearlyData | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{
@@ -67,23 +70,35 @@ function App() {
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 21 }, (_, i) => currentYear - 10 + i);
 
-  const handleSubmit = useCallback(async (formData: Omit<YearlyData, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleSubmit = useCallback(async (
+    formData:
+      | Omit<YearlyData, 'id' | 'createdAt' | 'updatedAt'>
+      | Array<Omit<BillEntry, 'id' | 'createdAt' | 'updatedAt'>>
+  ) => {
     try {
-      if (editingItem) {
-        await updateItem(editingItem.id, formData);
+      if (Array.isArray(formData)) {
+        // "repeat all year" bill – bulk create, skipping duplicates silently
+        await bulkCreateItems(formData as YearlyData[]);
+      } else if (editingItem) {
+        await updateItem(editingItem.id, formData as Partial<YearlyData>);
       } else {
-        await createItem(formData);
+        await createItem(formData as Omit<YearlyData, 'id' | 'createdAt' | 'updatedAt'>);
       }
       setShowForm(false);
+      setShowBillForm(false);
       setEditingItem(null);
     } catch (err) {
       console.error('Form submission error:', err);
     }
-  }, [editingItem, createItem, updateItem]);
+  }, [editingItem, createItem, updateItem, bulkCreateItems]);
 
   const handleEdit = useCallback((item: YearlyData) => {
     setEditingItem(item);
-    setShowForm(true);
+    if (item.category === 'bill') {
+      setShowBillForm(true);
+    } else {
+      setShowForm(true);
+    }
   }, []);
 
   const handleDeleteClick = useCallback((id: string) => {
@@ -158,8 +173,14 @@ function App() {
     setShowForm(true);
   };
 
+  const handleAddExpense = () => {
+    setEditingItem(null);
+    setShowBillForm(true);
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
+    setShowBillForm(false);
     setEditingItem(null);
   };
 
@@ -222,13 +243,22 @@ function App() {
                   </select>
                 </div>
 
-                {/* Add Button */}
+                {/* Add Entry Button */}
                 <button
                   onClick={handleAddNew}
                   className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Entry</span>
+                </button>
+
+                {/* Add Expense Button */}
+                <button
+                  onClick={handleAddExpense}
+                  className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors duration-200"
+                >
+                  <Receipt className="w-4 h-4" />
+                  <span>Add Expense</span>
                 </button>
 
                 {/* Print Button */}
@@ -280,6 +310,9 @@ function App() {
               {/* Month Completion Status */}
               <MonthStatus data={allData} selectedYear={selectedYear} />
 
+              {/* Monthly Money Overview (12-month, collapsible) */}
+              <MonthlyOverview allData={allData} selectedYear={selectedYear} />
+
               {/* Filters and Search */}
               <Filters
                 filters={filters}
@@ -288,10 +321,28 @@ function App() {
                 onSearchChange={setSearchTerm}
               />
 
-              {/* Data Table */}
+              {/* Salary / Income Table */}
               <div className="mb-6">
+                <h2 className="text-base font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
+                  Salary &amp; Income
+                </h2>
                 <DataTable
-                  data={data}
+                  data={data.filter((d) => d.category !== 'bill')}
+                  onEdit={handleEdit}
+                  onDelete={handleDeleteClick}
+                  loading={loading}
+                />
+              </div>
+
+              {/* Bills / Expenses Table */}
+              <div className="mb-6">
+                <h2 className="text-base font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 inline-block"></span>
+                  Bills &amp; Expenses
+                </h2>
+                <BillsTable
+                  data={data.filter((d): d is BillEntry => d.category === 'bill')}
                   onEdit={handleEdit}
                   onDelete={handleDeleteClick}
                   loading={loading}
@@ -310,13 +361,26 @@ function App() {
         </main>
 
         {/* Modals */}
+        {/* Entry form (salary/bonus/overtime/benefits) */}
         <DataForm
           isOpen={showForm}
           onClose={handleCloseForm}
           onSubmit={handleSubmit}
-          initialData={editingItem}
+          initialData={editingItem?.category !== 'bill' ? editingItem : null}
           selectedYear={selectedYear}
           allData={allData}
+          defaultBillMode={false}
+        />
+
+        {/* Bill / Expense form */}
+        <DataForm
+          isOpen={showBillForm}
+          onClose={handleCloseForm}
+          onSubmit={handleSubmit}
+          initialData={editingItem?.category === 'bill' ? editingItem : null}
+          selectedYear={selectedYear}
+          allData={allData}
+          defaultBillMode={true}
         />
 
         <ConfirmDialog
