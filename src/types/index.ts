@@ -21,7 +21,14 @@ export interface OtherEntry extends BaseEntry {
   category: 'bonus' | 'overtime' | 'benefits';
 }
 
-export type YearlyData = SalaryEntry | OtherEntry;
+export interface BillEntry extends BaseEntry {
+  category: 'bill';
+  title: string;
+  billingFrequency: 'monthly' | 'one-time';
+  repeatAllYear: boolean;
+}
+
+export type YearlyData = SalaryEntry | OtherEntry | BillEntry;
 
 export interface MonthStatus {
   year: number;

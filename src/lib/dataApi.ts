@@ -75,14 +75,14 @@ export async function updateEntry(id: string, updates: Partial<YearlyData>): Pro
   return normalizeDates([payload.entry])[0];
 }
 
-export async function deleteEntry(id: string): Promise<void> {
+export async function deleteEntry(id: string, category?: string): Promise<void> {
   const response = await fetch('/api/data', {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
     },
     credentials: 'include',
-    body: JSON.stringify({ id }),
+    body: JSON.stringify({ id, ...(category ? { category } : {}) }),
   });
 
   await parseJson<{ success: boolean }>(response);
