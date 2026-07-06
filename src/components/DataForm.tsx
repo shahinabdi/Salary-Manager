@@ -36,9 +36,11 @@ export const DataForm: React.FC<DataFormProps> = ({
     // Bill-specific fields
     title: '',
     billingFrequency: 'monthly' as 'monthly' | 'one-time',
-    repeatAllYear: false,
+    repeatMode: 'none' as 'none' | 'full_year' | 'until_end' | 'until_specific',
+    repeatUntilMonth: 12,
+    repeatUntilYear: selectedYear,
 
-    notes: '',
+    notes: ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -57,7 +59,9 @@ export const DataForm: React.FC<DataFormProps> = ({
           amount: 0,
           title: '',
           billingFrequency: 'monthly',
-          repeatAllYear: false,
+          repeatMode: 'none' as const,
+          repeatUntilMonth: 12,
+          repeatUntilYear: selectedYear,
           notes: initialData.notes || '',
         });
       } else if (initialData.category === 'bill') {
@@ -72,7 +76,9 @@ export const DataForm: React.FC<DataFormProps> = ({
           amount: initialData.amount,
           title: initialData.title,
           billingFrequency: initialData.billingFrequency,
-          repeatAllYear: initialData.repeatAllYear,
+          repeatMode: 'none' as const,
+          repeatUntilMonth: 12,
+          repeatUntilYear: initialData.year,
           notes: initialData.notes || '',
         });
       } else {
@@ -87,7 +93,9 @@ export const DataForm: React.FC<DataFormProps> = ({
           amount: initialData.amount,
           title: '',
           billingFrequency: 'monthly',
-          repeatAllYear: false,
+          repeatMode: 'none' as const,
+          repeatUntilMonth: 12,
+          repeatUntilYear: selectedYear,
           notes: initialData.notes || '',
         });
       }
@@ -103,7 +111,9 @@ export const DataForm: React.FC<DataFormProps> = ({
         amount: 0,
         title: '',
         billingFrequency: 'monthly',
-        repeatAllYear: false,
+        repeatMode: 'none' as const,
+        repeatUntilMonth: 12,
+        repeatUntilYear: selectedYear,
         notes: '',
       });
     }
@@ -178,18 +188,37 @@ export const DataForm: React.FC<DataFormProps> = ({
           amount: formData.amount,
           title: formData.title.trim(),
           billingFrequency: formData.billingFrequency,
-          repeatAllYear: formData.repeatAllYear,
+          repeatAllYear: formData.repeatMode !== 'none',
           notes: formData.notes,
         };
 
-        if (!initialData && formData.repeatAllYear) {
-          // Expand from selected month through December
-          const remaining = 12 - formData.month + 1;
-          const expanded: Array<Omit<BillEntry, 'id' | 'createdAt' | 'updatedAt'>> = Array.from(
-            { length: remaining },
-            (_, i) => ({ ...base, month: formData.month + i, year: formData.year })
-          );
-          onSubmit(expanded);
+        if (!initialData && formData.repeatMode !== 'none') {
+          // Build list of { month, year } slots to create
+          const slots: Array<{ month: number; year: number }> = [];
+
+          if (formData.repeatMode === 'full_year') {
+            for (let m = 1; m <= 12; m++) {
+              slots.push({ month: m, year: formData.year });
+            }
+          } else if (formData.repeatMode === 'until_end') {
+            for (let m = formData.month; m <= 12; m++) {
+              slots.push({ month: m, year: formData.year });
+            }
+          } else if (formData.repeatMode === 'until_specific') {
+            let m = formData.month;
+            let y = formData.year;
+            const endM = formData.repeatUntilMonth;
+            const endY = formData.repeatUntilYear;
+            while (y < endY || (y === endY && m <= endM)) {
+              slots.push({ month: m, year: y });
+              m++;
+              if (m > 12) { m = 1; y++; }
+            }
+          }
+
+          const expanded: Array<Omit<BillEntry, 'id' | 'createdAt' | 'updatedAt'>> =
+            slots.map((s) => ({ ...base, month: s.month, year: s.year }));
+          onSubmit(expanded.length > 0 ? expanded : base);
         } else {
           onSubmit(base);
         }
@@ -449,17 +478,56 @@ export const DataForm: React.FC<DataFormProps> = ({
                 </div>
 
                 {!isEditing && formData.billingFrequency === 'monthly' && (
-                  <div className="flex items-center mt-6">
-                    <input
-                      type="checkbox"
-                      id="repeatAllYear"
-                      checked={formData.repeatAllYear}
-                      onChange={(e) => handleInputChange('repeatAllYear', e.target.checked)}
-                      className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="repeatAllYear" className="ml-2 block text-sm font-medium text-gray-700">
-                      Repeat until end of {formData.year}
-                    </label>
+                  <div className="col-span-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Repeat</label>
+                    <div className="flex flex-col gap-2">
+                      {([
+                        { value: 'none',           label: 'Just this month' },
+                        { value: 'full_year',      label: `All 12 months of ${formData.year}` },
+                        { value: 'until_end',      label: `Until end of ${formData.year} (${12 - formData.month + 1} months)` },
+                        { value: 'until_specific', label: 'Until a specific month…' },
+                      ] as const).map(({ value, label }) => (
+                        <label key={value} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="repeatMode"
+                            value={value}
+                            checked={formData.repeatMode === value}
+                            onChange={() => handleInputChange('repeatMode', value)}
+                            className="h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300"
+                          />
+                          <span className="text-sm text-gray-700">{label}</span>
+                        </label>
+                      ))}
+                    </div>
+
+                    {formData.repeatMode === 'until_specific' && (
+                      <div className="mt-3 flex items-center gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Until month</label>
+                          <select
+                            value={formData.repeatUntilMonth}
+                            onChange={(e) => handleInputChange('repeatUntilMonth', parseInt(e.target.value))}
+                            className="px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                          >
+                            {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m, i) => (
+                              <option key={i + 1} value={i + 1}>{m}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Until year</label>
+                          <input
+                            type="number"
+                            value={formData.repeatUntilYear}
+                            onChange={(e) => handleInputChange('repeatUntilYear', parseInt(e.target.value) || formData.year)}
+                            min={formData.year}
+                            max="2100"
+                            className="w-24 px-2 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -500,8 +568,14 @@ export const DataForm: React.FC<DataFormProps> = ({
                   ? isBill
                     ? 'Update Bill'
                     : 'Update Entry'
-                  : isBill && formData.repeatAllYear
-                  ? `Add Bill until Dec ${formData.year} (${12 - formData.month + 1} months)`
+                  : isBill && formData.repeatMode === 'full_year'
+                  ? `Add Bill — all 12 months of ${formData.year}`
+                  : isBill && formData.repeatMode === 'until_end'
+                  ? `Add Bill — until Dec ${formData.year} (${12 - formData.month + 1} months)`
+                  : isBill && formData.repeatMode === 'until_specific'
+                  ? `Add Bill — until ${
+                      ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][formData.repeatUntilMonth - 1]
+                    } ${formData.repeatUntilYear}`
                   : isBill
                   ? 'Add Bill'
                   : 'Create Entry'}
