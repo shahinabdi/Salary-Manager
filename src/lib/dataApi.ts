@@ -1,5 +1,12 @@
 import type { YearlyData } from '../types';
 
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('Session expired');
+    this.name = 'SessionExpiredError';
+  }
+}
+
 interface DataApiError {
   error?: string;
 }
@@ -20,6 +27,10 @@ interface BulkImportResponse {
 }
 
 async function parseJson<T>(response: Response): Promise<T> {
+  if (response.status === 401) {
+    throw new SessionExpiredError();
+  }
+
   const data = (await response.json().catch(() => ({}))) as DataApiError;
 
   if (!response.ok) {

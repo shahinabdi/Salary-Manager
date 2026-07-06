@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { AuthUser, YearlyData, BillEntry } from './types';
 import { useDataManagement } from './hooks/useDataManagement';
+import { SessionExpiredError } from './lib/dataApi';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { LoginPage } from './components/LoginPage';
@@ -56,7 +57,7 @@ function App() {
         const user = await fetchCurrentUser();
         setAuthUser(user);
       } catch (err) {
-        console.error('Failed to fetch current session:', err);
+        // expired or missing token → go to login
         setAuthUser(null);
       } finally {
         setAuthLoading(false);
@@ -65,6 +66,13 @@ function App() {
 
     void checkSession();
   }, []);
+
+  // Auto-logout on session expiry detected during any API call
+  useEffect(() => {
+    if (error && error.includes('Session expired')) {
+      setAuthUser(null);
+    }
+  }, [error]);
 
   // Generate year options (current year ± 10 years)
   const currentYear = new Date().getFullYear();

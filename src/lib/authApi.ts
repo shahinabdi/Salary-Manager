@@ -1,4 +1,5 @@
 import type { AuthUser } from '../types';
+import { SessionExpiredError } from './dataApi';
 
 interface LoginResponse {
   user: AuthUser;
@@ -9,6 +10,10 @@ interface MeResponse {
 }
 
 async function parseJson<T>(response: Response): Promise<T> {
+  if (response.status === 401) {
+    throw new SessionExpiredError();
+  }
+
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
